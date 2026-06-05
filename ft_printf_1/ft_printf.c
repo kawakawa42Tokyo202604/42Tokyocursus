@@ -16,7 +16,7 @@ int	ft_printf(const char *format, ...)
 		{
 			temp = handler(*(format + 1), args);
 			if (temp == -1 || count == -1)
-				return (-1);
+				return (va_end(args), -1);
 			count += temp;
 			++format;
 		}
