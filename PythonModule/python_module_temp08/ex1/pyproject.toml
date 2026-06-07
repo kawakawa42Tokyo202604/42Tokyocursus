@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "matrix-loader"
+version = "0.1.0"
+description = "Matrix package management and data loading exercise"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.0.0"
+numpy = "^1.24.0"
+matplotlib = "^3.7.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

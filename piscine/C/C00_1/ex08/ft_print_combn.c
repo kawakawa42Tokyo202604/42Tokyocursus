@@ -1,0 +1,25 @@
+#include <unistd.h>
+
+void	ft_print_combn(int n)
+{
+	int		i;
+	int		h[10];
+	char	c;
+
+	if (n)
+	{
+		h[n] = 0;
+		i = 0;
+		while (h[i] <= 10)
+		{
+			if (h[i] <= h[i - 1])
+			{
+				c = h[n] + '0';
+				write(1, &c, 1);
+			}
+			++h[n];
+			++i;
+		}
+	}
+	ft_print_combn(n);
+}

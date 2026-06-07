@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+data_generator.py
+data_exporter.py
+data_generator.tar
+run_tests.py
+generated_data/

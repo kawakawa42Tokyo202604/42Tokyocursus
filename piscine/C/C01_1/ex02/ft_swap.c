@@ -1,0 +1,24 @@
+//#include <unistd.h>
+
+void	ft_swap(int *a, int *b)
+{
+	int	temp;
+
+	temp = *a;
+	*a = *b;
+	*b = temp;
+}
+
+// int	main(void)
+// {
+// 	int	n;
+// 	int	m;
+
+// 	n = 8;
+// 	m = 7;
+// 	write(1, &n, 1);
+// 	write(1, &m, 1);
+// 	ft_swap(&n, &m);
+// 	write(1, &n, 1);
+// 	write(1, &m, 1);
+// }
