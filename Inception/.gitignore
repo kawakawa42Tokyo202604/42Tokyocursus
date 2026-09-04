@@ -1,0 +1,36 @@
+# Local environment files. Keep the example configuration tracked.
+/.env
+/.env.*
+!/.env.example
+/srcs/.env
+/srcs/.env.*
+!/srcs/.env.example
+
+# Local credentials and Docker secrets.
+/secrets/*
+!/secrets/.gitkeep
+
+# Local runtime data and generated files.
+/data/
+*.log
+*.pid
+*.sock
+
+# Locally generated certificates and private keys.
+*.crt
+*.csr
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Editor and operating-system files.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+message.txt
+Inception*

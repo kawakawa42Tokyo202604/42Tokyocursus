@@ -1,0 +1,218 @@
+services:
+  mariadb:
+    build:
+      context: ./requirements/mariadb
+      dockerfile: Dockerfile
+    image: mariadb:inception
+    restart: unless-stopped
+    env_file:
+      - .env
+    secrets:
+      - db_root_password
+      - db_password
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - inception
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mariadb-admin --protocol=socket
+          --socket=/run/mysqld/mysqld.sock --user=root
+          --password=$$(cat /run/secrets/db_root_password) ping --silent
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    build:
+      context: ./requirements/bonus/redis
+      dockerfile: Dockerfile
+    image: redis:inception
+    restart: unless-stopped
+    secrets:
+      - redis_password
+    networks:
+      - inception
+    healthcheck:
+      test:
+        - CMD
+        - /usr/local/bin/healthcheck.sh
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  wordpress:
+    build:
+      context: ./requirements/wordpress
+      dockerfile: Dockerfile
+    image: wordpress:inception
+    restart: unless-stopped
+    env_file:
+      - .env
+    secrets:
+      - db_password
+      - wp_admin_password
+      - wp_user_password
+      - redis_password
+    volumes:
+      - wordpress_data:/var/www/html
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - inception
+    healthcheck:
+      test:
+        - CMD
+        - wp
+        - --allow-root
+        - --path=/var/www/html
+        - core
+        - is-installed
+        - --quiet
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  nginx:
+    build:
+      context: ./requirements/nginx
+      dockerfile: Dockerfile
+    image: nginx:inception
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "443:443"
+    volumes:
+      - wordpress_data:/var/www/html:ro
+    depends_on:
+      wordpress:
+        condition: service_healthy
+    networks:
+      - inception
+
+  ftp:
+    build:
+      context: ./requirements/bonus/ftp
+      dockerfile: Dockerfile
+    image: ftp:inception
+    restart: unless-stopped
+    env_file:
+      - .env
+    secrets:
+      - ftp_password
+    ports:
+      - "21:21"
+      - "21100-21110:21100-21110"
+    volumes:
+      - wordpress_data:/var/www/html
+    depends_on:
+      wordpress:
+        condition: service_healthy
+    networks:
+      - inception
+
+  adminer:
+    build:
+      context: ./requirements/bonus/adminer
+      dockerfile: Dockerfile
+    image: adminer:inception
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - inception
+
+  static-site:
+    build:
+      context: ./requirements/bonus/static-site
+      dockerfile: Dockerfile
+    image: static-site:inception
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - inception
+
+  backup:
+    build:
+      context: ./requirements/bonus/backup
+      dockerfile: Dockerfile
+    image: backup:inception
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      BACKUP_SCHEDULE: "${BACKUP_SCHEDULE:-0 3 * * *}"
+      BACKUP_RETENTION: "${BACKUP_RETENTION:-7}"
+    secrets:
+      - db_password
+    volumes:
+      - wordpress_data:/source/wordpress:ro
+      - backup_data:/var/backups/inception
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      wordpress:
+        condition: service_healthy
+    networks:
+      - inception
+
+  restore-check:
+    profiles:
+      - ops
+    build:
+      context: ./requirements/bonus/restore-check
+      dockerfile: Dockerfile
+    image: restore-check:inception
+    restart: "no"
+    volumes:
+      - backup_data:/var/backups/inception:ro
+    network_mode: none
+
+volumes:
+  mariadb_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/home/takawaka/data}/mariadb
+  wordpress_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/home/takawaka/data}/wordpress
+  backup_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/home/takawaka/data}/backups
+
+secrets:
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+  db_password:
+    file: ../secrets/db_password.txt
+  wp_admin_password:
+    file: ../secrets/wp_admin_password.txt
+  wp_user_password:
+    file: ../secrets/wp_user_password.txt
+  redis_password:
+    file: ../secrets/redis_password.txt
+  ftp_password:
+    file: ../secrets/ftp_password.txt
+
+networks:
+  inception:
+    driver: bridge
