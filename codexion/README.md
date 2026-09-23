@@ -3,18 +3,18 @@
 *This project has been created as part of the 42 curriculum by \<takawaka\>.*
 
 ## Description
-Codexion is a multi-threaded simulation project designed to tackle resource synchronization and timing challenges in C[cite: 10]. The program simulates multiple coders sitting around a table, alternating between compiling quantum code, debugging, and refactoring[cite: 10]. Since compiling requires acquiring two neighboring USB dongles simultaneously out of a limited shared pool, the system must carefully orchestrate access to prevent deadlocks and data races, all while avoiding coder burnout before the designated deadlines[cite: 10].
+Codexion is a multi-threaded simulation project about resource synchronization and timing in C. It simulates coders who alternate between compiling quantum code, debugging, and refactoring while sharing neighboring USB dongles. The program coordinates dongle access and monitors each coder's burnout deadline.
 
 ## Instructions
 
 ### Compilation
-To compile the project with standard flags (`-Wall -Wextra -Werror -pthread`), run the following command at the root directory[cite: 6, 10]:
+To compile the project with standard flags (`-Wall -Wextra -Werror -pthread`), run the following command at the root directory:
 ```bash
 make
 ```
 
 ### Execution
-The program requires exactly 8 positional arguments[cite: 10]:
+The program requires exactly 8 positional arguments:
 ```bash
 ./codexion <number_of_coders> <time_to_burnout> <time_to_compile> <time_to_debug> <time_to_refactor> <number_of_compiles_required> <dongle_cooldown> <scheduler>
 ```
@@ -29,106 +29,100 @@ The program requires exactly 8 positional arguments[cite: 10]:
     ```
 
 ## Resources
-*   **POSIX Threads Documentation:** `pthread` manual pages (IEEE Std 1003.1).
-*   **Operating Systems Concepts:** Silberschatz, Galvin, and Gagne (References on Dining Philosophers and Coffman's Conditions).
-*   **AI Usage Disclosure:**
-*   AI was consulted periodically for guidance on the proper usage and implementation of multi-threading and timing functions, specifically `pthread_create`, `pthread_join`, `pthread_mutex_init`, `pthread_mutex_lock`, `pthread_mutex_unlock`, `pthread_mutex_destroy`, `pthread_cond_init`, `pthread_cond_wait`, `pthread_cond_timedwait`, `pthread_cond_signal`, `pthread_cond_broadcast`, `pthread_cond_destroy`, `gettimeofday`, and `usleep`.
+- **POSIX threads:** `pthread` manual pages (IEEE Std 1003.1).
+- **Operating Systems Concepts:** Silberschatz, Galvin, and Gagne; references on Dining Philosophers and Coffman's conditions.
+
+### AI Usage Disclosure
+AI was used to review pthread and timing API usage and to help organize and proofread this README.
 
 
 ## Blocking cases handled
 
 ### Deadlock Prevention & Coffman's Conditions
-To eliminate deadlocks, we broke the **Circular Wait** condition—one of Coffman's four mandatory conditions for a deadlock. Instead of coders blindly grabbing their left or right dongle first, our `take_dongles` logic dynamically checks the resource indices and forces every coder to always acquire the smaller numerical index (`low`) before requesting the larger index (`high`)[cite: 8]. This absolute resource ordering prevents any potential circular dependency loop across the thread network.
+The `take_dongles` function compares the two dongle indices and always requests the smaller index (`low`) before the larger one (`high`). This consistent ordering prevents circular wait during dongle acquisition.
 
-### Starvation Prevention
-Under the `edf` scheduler option, starvation is mitigated by implementing a deterministic **Earliest Deadline First** sorting scheme[cite: 10]. Coders facing an imminent burnout deadline (calculated as `last_compile_start + time_to_burnout`) are assigned the highest priority keys within the dongle's binary heap queue[cite: 8, 10]. This ensures that dying threads jump straight to the head of the resource queue, avoiding starvation[cite: 8, 10].
+### EDF Priority Policy
+Under the `edf` option, each dongle's heap queue prioritizes the coder with the earliest estimated burnout deadline (`last_compile_start + time_to_burnout`). This gives urgent requests priority, but does not guarantee starvation-free scheduling.
 
 ### Cooldown Handling
-After a coder releases a dongle, the resource must remain locked out for a specific duration (`dongle_cooldown`)[cite: 10]. To implement this without stalling the entire simulation, our `wait_dongle` routine drops the dongle's mutex lock while sleeping via `usleep` during the cooldown window[cite: 8]. This non-blocking design allows other threads to queue up behind the cooling resource without freezing the execution flow.
+After a coder releases a dongle, it remains unavailable for `dongle_cooldown`. During this wait, `wait_dongle` releases the dongle mutex before sleeping with `usleep`, then locks it again to recheck the queue and cooldown.
 
-### Precise Burnout Detection
-The Subject mandates that a coder's burnout log must be printed within 10 ms of the actual expiration[cite: 10]. A dedicated monitor thread runs an optimized observation loop with a micro-sleep interval of 1 ms (`usleep(1000)`), checking every coder's timestamp continuously to achieve hyper-precise termination logs well within the 10 ms window[cite: 7, 10].
+### Burnout Monitoring
+The monitor checks coder timestamps in a loop and calls `usleep(1000)` between checks. This requests a 1 ms sleep; actual check and log timing can be longer because of processing time and operating-system scheduling.
 
 ### Log Serialization
-To guarantee that state transitions are never interleaved or garbled on the stdout stream, a globally shared `print_mutex` is locked before any `printf` statement executes and is released immediately after, satisfying the serialization requirement[cite: 8, 10].
+The `print_log` function locks the shared `print_mutex` while writing a log line, so concurrent log messages do not interleave.
 
 ## Thread synchronization mechanisms
 
 ### Primitive Types Used
-*   `pthread_mutex_t`: Utilized to secure individual dongle states, serialize stdout logging operations, and shield shared state metrics[cite: 8, 10].
-*   `pthread_cond_t`: Bound to each individual dongle to put requesting threads into an efficient, low-overhead sleep state until the specific resource is released[cite: 8, 10].
+*   `pthread_mutex_t`: Utilized to secure individual dongle states, serialize stdout logging operations, and shield shared state metrics.
+*   `pthread_cond_t`: Bound to each individual dongle to put requesting threads into an efficient, low-overhead sleep state until the specific resource is released.
 
-### Coordination & Thread-Safe Communication
-*   **Coders to Monitor:** Coders update their local metrics (`last_compile_start` and `compile_count`) inside a critical section protected by `state_mutex`[cite: 7]. The monitor thread locks this exact mutex to read the current values, ensuring a race-free data exchange[cite: 7].
-*   **Monitor to Coders:** When the monitor thread detects a burnout or detects that the compile thresholds are met, it safely changes the global `stop_flag` under the protection of `state_mutex`[cite: 7]. It then calls `pthread_cond_broadcast` across all dongle condition variables to awake any sleeping worker threads, ensuring a clean, leak-free unwinding and joining of all active sub-threads[cite: 7, 8].
+### Shared State and Shutdown
+*   **Coder metrics:** Coders update `last_compile_start` and `compile_count` while holding `state_mutex`; the monitor reads these values under the same mutex.
+*   **Shutdown:** When the monitor detects a burnout or completion, it sets `stop_flag` while holding `state_mutex` and broadcasts on the dongle condition variables to wake waiting threads.
 
 
 # Codexion
 
 
 ## 概要
-Codexionは、C言語におけるマルチスレッド環境でのリソース同期とタイミングの課題（食事する哲学者問題の発展形）を解決するために設計されたシミュレーションプロジェクトです[cite: 10]。このプログラムは、円卓を囲んで座り、量子コードのコンパイル、デバッグ、リファクタリングを交互に行う複数のコーダーをシミュレートします[cite: 10]。コンパイルを実行するには、制限のある共有プールから隣り合う2つのUSBドングルを両手に同時に確保する必要があるため、デッドロックやデータレースを防ぐための慎重な排他制御が求められます[cite: 10]。これらすべてを、指定された制限時間内にコーダーがバーンアウト（燃え尽き）するのを避けながら処理します[cite: 10]。
+Codexionは、C言語のマルチスレッド環境におけるリソース同期とタイミングを扱うシミュレーションプロジェクトです。複数のコーダーが円卓を囲み、量子コードのコンパイル、デバッグ、リファクタリングを行います。コンパイルには隣り合う2つのUSBドングルが必要です。プログラムはドングルの利用順序を調整し、各コーダーのバーンアウト期限を監視します。
 
 ## 使用方法
 
 ### コンパイル
-標準コンパイルフラグ（`-Wall -Wextra -Werror -pthread`）を使用してプロジェクトをビルドするには、ルートディレクトリで以下のコマンドを実行します
+プロジェクトのルートディレクトリで、以下のコマンドを実行してビルドします。標準コンパイルフラグとして `-Wall -Wextra -Werror -pthread` を使用します。
 ```bash
 make
 ```
 
 ### 実行方法
-プログラムは、正確に8個の位置引数を必要とします
+実行時には、次の8つのコマンドライン引数を指定します。
 ```bash
 ./codexion <number_of_coders> <time_to_burnout> <time_to_compile> <time_to_debug> <time_to_refactor> <number_of_compiles_required> <dongle_cooldown> <scheduler>
 ```
 
-*   **実行例 (FIFOモード):**
+*   **実行例（FIFOモード）:**
     ```bash
     ./codexion 4 410 200 100 100 0 0 fifo
     ```
-*   **実行例 (EDFモード・コンパイル回数制限あり):**
+*   **実行例（コンパイル回数を指定したEDFモード）:**
     ```bash
     ./codexion 5 800 200 100 100 7 0 edf
     ```
 
 ## 参照・使用リソース
-*   **POSIX Threads Documentation:** `pthread` manual pages (IEEE Std 1003.1).
-*   **Operating Systems Concepts:** Silberschatz, Galvin, and Gagne (食事する哲学者問題およびコフマンの条件に関するリファレンス).
-*   **AIの使用に関する開示:**
-pthread_create, pthread_join, pthread_mutex_init,
-pthread_mutex_lock,
-pthread_mutex_unlock, pthread_mutex_destroy,
-pthread_cond_init,
-pthread_cond_wait, pthread_cond_timedwait,
-pthread_cond_signal,
-pthread_cond_broadcast, pthread_cond_destroy,
-gettimeofday, usleep
-の使用方法について適時教えてもらいました。
+- **POSIX threads:** `pthread` のマニュアルページ（IEEE Std 1003.1）。
+- **Operating Systems Concepts:** Silberschatz、Galvin、Gagne 著。食事する哲学者問題とコフマンの条件の参考にしました。
 
-## 解決した競合・ブロッキング問題
+### AIの使用
+pthreadと時間計測関数の使い方の確認、READMEの構成と推敲にAIを利用しました。
 
-### デッドロック防止とコフマンの条件の破壊
-デッドロックの発生を完全に排除するため、コフマンの4条件のうち「循環待ち（Circular Wait）」を論理的に破壊しました。コーダーが左右のドングルを無秩序に奪い合うのを防ぐため、`take_dongles` ロジックでは取得対象となる左右のドングルのインデックスを動的に比較し、**常に番号が小さいドングル（`low`）を確保してから、番号が大きいドングル（`high`）を確保しにいくように強制しています**[cite: 8]。この一貫したリソース順序付けにより、スレッド間で循環的な依存が発生するのを100%防止しています[cite: 8]。
+## 同期と待機の設計
 
-### 飢餓（スターベーション）の防止
-`edf` スケジューラオプションでは、決定論的な **Earliest Deadline First** ソートアルゴリズムを自作ヒープを用いて実装することで飢餓を防止しています[cite: 2, 10]。次にバーンアウトするまでの残り時間が短い（＝デッドライン `last_compile_start + time_to_burnout` が最も近い）コーダーに対して、ドングルのバイナリヒープキュー内で最も高い優先度（最小のキー値）を割り当てます[cite: 2, 8, 10]。これにより、生命の危機に瀕しているスレッドが常にリソース待ち行列の最優先位置に割り込むため、特定のコーダーがドングルを確保できずに死亡するのを防ぎます[cite: 2, 8, 10]。
+### ドングル取得順序によるデッドロック防止
+`take_dongles` は左右のドングルの番号を比較し、必ず小さい番号（`low`）から大きい番号（`high`）の順に取得します。この順序付けにより、ドングル取得時の循環待ちを防ぎます。
 
-### 冷却時間（コールドダウン）の処理
-ドングルが解放された後、指定されたミリ秒数（`dongle_cooldown`）は他のコーダーがそのドングルを使用できないように制限する必要があります[cite: 10]。しかし、冷却待機中のスレッドがドングルのMutexロックを保持したまま `usleep` してしまうと、列の後ろに並びたい他のスレッドの邪魔をしてしまい、シミュレーション全体がデッドロックのようにフリーズします。これに対処するため、`wait_dongle` 関数では、冷却時間の待機に入る直前に**ドングルのMutexロックを一度一時的に解放し、`usleep` 明けに再ロックする**非ブロッキング設計を採用しています[cite: 8]。
+### EDFによる優先順位付け
+`edf` オプションでは、各ドングルのヒープキューで推定バーンアウト期限（`last_compile_start + time_to_burnout`）が最も早いコーダーを優先します。緊急度の高い要求を先に扱う仕組みですが、飢餓が起きないことを保証するものではありません。
 
-### 高精度なバーンアウト検出
-仕様書では、コーダーの死亡（バーンアウト）ログを、実際の死亡時刻から最大10ms以内に出力することを求めています[cite: 10]。これを実現するため、本システムでは完全に独立した監視員スレッド（モニター）を1つ起動し[cite: 7, 10]、1ms周期（`usleep(1000)`）の超高速チェックループを回すことで[cite: 7]、ミリ秒単位での正確な死亡ログの出力を可能にしています[cite: 7, 10]。
+### 冷却時間の管理
+ドングルは解放後、設定された冷却時間（`dongle_cooldown`）が過ぎるまで使用できません。`wait_dongle` は待機中にドングルのミューテックスを解放して `usleep` を呼び、起床後に再取得してキューと冷却時間を確認します。
 
-### ログのシリアライズ化
-シミュレーション中の状態遷移ログが標準出力（stdout）上で混ざり合ったり、行の途中に割り込まれたりするのを防ぐため、すべての `printf` 出力処理の直前に共有ミューテックス `print_mutex` をロックし、出力が完了した直後にアンロックすることで、ログの完全なシリアライズ（一列化）を保証しています[cite: 8, 10]。
+### バーンアウト監視
+`usleep(1000)` を各チェックの間に呼び、モニタースレッドがコーダーの時刻を繰り返し確認します。これは1msのスリープを要求しますが、処理時間やOSのスケジューリングによって実際の検出・出力は遅れる場合があります。
+
+### ログ出力の排他制御
+`print_log` はログ行を出力する間、共有ミューテックス `print_mutex` をロックします。これにより、複数スレッドからのログ出力が交錯しないようにしています。
 
 ## スレッド同期メカニズム
 
 ### 使用したスレッドプリミティブ
-*   `pthread_mutex_t`: 各ドングルの排他制御[cite: 8, 10]、ログ出力時の競合防止（`print_mutex`）[cite: 8, 10]、および生存時間などの状態変数の保護（`state_mutex`）に使用します[cite: 7, 10]。
-*   `pthread_cond_t`: 各ドングルに紐付けられ、リソースが空く（または冷却時間が明ける）まで、要求中のスレッドをCPU負荷をかけずに効率的に休眠状態（ブロック）させるために使用します[cite: 8, 10]。
+*   `pthread_mutex_t`: ドングルの排他制御、ログ出力の保護（`print_mutex`）、コーダーの状態変数の保護（`state_mutex`）に使用します。
+*   `pthread_cond_t`: 各ドングルに対応する条件変数です。ドングルが使用可能になるまで、要求スレッドを待機させるために使用します。
 
-### スレッド間の調整と安全な通信
-*   **コーダーからモニターへの情報共有:** コーダーが生存タイマー（`last_compile_start`）やコンパイル回数（`compile_count`）を書き換える際は、モニター側の読み取りと競合してデータレースを起こさないよう、必ず `state_mutex` のクリティカルセクション内で安全に値を更新します[cite: 7]。
-*   **モニターからコーダーへの終了通知:** モニターが死亡またはコンパイル規定回数の達成を検知すると、`state_mutex` の下で安全にグローバルな `stop_flag` を `1` に書き換えます[cite: 7]。その後、全ドングルの条件変数に `pthread_cond_broadcast` を送り[cite: 8]、休眠中のすべてのコーダースレッドを強制的に起こすことで、デッドロックを起こすことなく全員を安全に `pthread_join`（スレッドの回収・終了）へ導きます[cite: 7, 8]。
+### 共有状態と終了処理
+*   **コーダーの状態:** `last_compile_start` と `compile_count` の更新と読み取りには、どちらも `state_mutex` を使用します。
+*   **終了通知:** モニターはバーンアウト、または必要なコンパイル回数への到達を検知すると、`state_mutex` をロックして `stop_flag` を設定します。続いて、各ドングルの条件変数にブロードキャスト通知を送り、待機中のスレッドを起こします。

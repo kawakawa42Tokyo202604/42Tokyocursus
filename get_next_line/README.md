@@ -3,31 +3,29 @@
 # get_next_line
 
 
-## Description
-この課題は与えられたファイルの改行までをreturnして、残りはstatic変数に格納し、次に、もう一度呼び出されたときにしっかり改行までを出力できるような関数を作成することです。
+## 概要
+この課題では、ファイルディスクリプタから1行ずつ読み取る `get_next_line` を実装します。呼び出すたびに1行分の文字列を返し、次の呼び出しで使う残りのデータは `static` 変数に保持します。
 
-### Detailed explanation
-どんなBUFFER_SIZEでも動作するようにしました。
+### 読み込み方法
+1回の `read` で読み込むサイズは、`BUFFER_SIZE` で指定します。
 
-### Justification of the chosen algorithm
-whileで呼び出したis_newline関数が「改行が含まれている」と判定するまで読み込み続けます。
-その後、改行からのあまりをstaticに格納しています。
+### 実装の流れ
+`is_newline` を使って読み込んだデータに改行が含まれているかを確認します。改行が見つからない場合は、改行またはEOFに達するまで読み込みを続けます。1行分を返した後、残りのデータは `static` 変数に保存し、次の呼び出しで使います。
 
-## Instructions
+## 使用方法
 
-ファイルディスクリプタを渡す。
+読み取り対象のファイルディスクリプタを `get_next_line` に渡します。
 
-### Compilation
-```
-Makefileを使用してライブラリを作成します。
+### コンパイル
+以下にMakefileの例と、ライブラリの作成に使うコマンドを示します。
+```bash
 make        # .aを生成
 make clean  # .oを削除
 make fclean # 生成ファイルをすべて削除
-make re     # fclean の後に　make
-
+make re     # fclean の後に make
 ```
-#### Makefile
-```Makefile
+#### Makefileの例
+```make
 NAME    = get_next_line.a
 CC      = cc
 CFLAGS  = -Wall -Wextra -Werror
@@ -168,7 +166,5 @@ Final line without a newline... (maybe)
 [File 2] Line D: Goodbye!
 ```
 
-## Resources
-AIの使用
-
-staticやread,openの扱いについて詳しく教えてもらい、READMEやmain等を手伝ってもらいました。
+## AIの利用
+`static` 変数や `read`、`open` の使い方の理解、サンプルの `main` とREADMEの作成・見直しにAIを利用しました。
