@@ -56,10 +56,11 @@ cat "$CONFIG_TEMPLATE" > "$CONFIG_TMP"
 printf 'requirepass %s\n' "$REDIS_PASSWORD" >> "$CONFIG_TMP"
 unset REDIS_PASSWORD
 chmod 600 "$CONFIG_TMP"
+chown redis:redis "$CONFIG_TMP"
 mv "$CONFIG_TMP" "$CONFIG_PATH"
 CONFIG_TMP=
 
 if [ "$#" -eq 0 ]; then
 	set -- redis-server "$CONFIG_PATH" --daemonize no
 fi
-exec "$@"
+exec setpriv --reuid=redis --regid=redis --init-groups "$@"

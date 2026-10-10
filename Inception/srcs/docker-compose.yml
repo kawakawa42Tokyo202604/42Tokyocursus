@@ -1,3 +1,5 @@
+name: inception
+
 services:
   mariadb:
     build:
@@ -18,9 +20,7 @@ services:
       test:
         - CMD-SHELL
         - >-
-          mariadb-admin --protocol=socket
-          --socket=/run/mysqld/mysqld.sock --user=root
-          --password=$$(cat /run/secrets/db_root_password) ping --silent
+          /usr/local/bin/healthcheck.sh
       interval: 5s
       timeout: 5s
       retries: 10
@@ -57,7 +57,11 @@ services:
       - wp_user_password
       - redis_password
     volumes:
-      - wordpress_data:/var/www/html
+      - type: volume
+        source: wordpress_data
+        target: /var/www/html
+        volume:
+          nocopy: true
     depends_on:
       mariadb:
         condition: service_healthy
@@ -67,13 +71,10 @@ services:
       - inception
     healthcheck:
       test:
-        - CMD
-        - wp
-        - --allow-root
-        - --path=/var/www/html
-        - core
-        - is-installed
-        - --quiet
+        - CMD-SHELL
+        - >-
+          php -r 'exit(@fsockopen("127.0.0.1", 9000) ? 0 : 1);' &&
+          wp --allow-root --path=/var/www/html core is-installed --quiet
       interval: 5s
       timeout: 5s
       retries: 20
@@ -90,10 +91,16 @@ services:
     ports:
       - "443:443"
     volumes:
-      - wordpress_data:/var/www/html:ro
+      - type: volume
+        source: wordpress_data
+        target: /var/www/html
+        read_only: true
+        volume:
+          nocopy: true
     depends_on:
       wordpress:
         condition: service_healthy
+        restart: true
     networks:
       - inception
 
@@ -108,10 +115,14 @@ services:
     secrets:
       - ftp_password
     ports:
-      - "21:21"
-      - "21100-21110:21100-21110"
+      - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:21:21"
+      - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:21100-21110:21100-21110"
     volumes:
-      - wordpress_data:/var/www/html
+      - type: volume
+        source: wordpress_data
+        target: /var/www/html
+        volume:
+          nocopy: true
     depends_on:
       wordpress:
         condition: service_healthy
@@ -125,7 +136,7 @@ services:
     image: adminer:inception
     restart: unless-stopped
     ports:
-      - "8081:8080"
+      - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:8081:8080"
     depends_on:
       mariadb:
         condition: service_healthy
@@ -157,7 +168,12 @@ services:
     secrets:
       - db_password
     volumes:
-      - wordpress_data:/source/wordpress:ro
+      - type: volume
+        source: wordpress_data
+        target: /source/wordpress
+        read_only: true
+        volume:
+          nocopy: true
       - backup_data:/var/backups/inception
     depends_on:
       mariadb:
@@ -177,27 +193,30 @@ services:
     restart: "no"
     volumes:
       - backup_data:/var/backups/inception:ro
-    network_mode: none
+    depends_on:
+      restore-db:
+        condition: service_healthy
+    networks:
+      - restore
+
+  restore-db:
+    profiles:
+      - ops
+    build:
+      context: ./requirements/bonus/restore-db
+      dockerfile: Dockerfile
+    image: restore-db:inception
+    restart: "no"
+    networks:
+      - restore
 
 volumes:
   mariadb_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_DIR:-/home/takawaka/data}/mariadb
   wordpress_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_DIR:-/home/takawaka/data}/wordpress
   backup_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_DIR:-/home/takawaka/data}/backups
 
 secrets:
   db_root_password:
@@ -216,3 +235,6 @@ secrets:
 networks:
   inception:
     driver: bridge
+  restore:
+    driver: bridge
+    internal: true

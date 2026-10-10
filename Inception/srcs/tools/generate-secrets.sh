@@ -2,7 +2,7 @@
 
 set -eu
 
-PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 SECRET_DIR=$PROJECT_ROOT/secrets
 
 umask 077

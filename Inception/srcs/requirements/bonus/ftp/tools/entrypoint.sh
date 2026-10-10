@@ -84,7 +84,7 @@ prepare_permissions() {
 	find "$WEB_ROOT" -type d -exec setfacl -m "d:u:$FTP_USER:rwx" {} +
 	find "$WEB_ROOT" -type f -exec setfacl -m "u:$FTP_USER:rw" {} +
 	if [ -f "$WEB_ROOT/wp-config.php" ]; then
-		setfacl -m "u:$FTP_USER:r--" "$WEB_ROOT/wp-config.php"
+		setfacl -m "u:$FTP_USER:---" "$WEB_ROOT/wp-config.php"
 	fi
 }
 

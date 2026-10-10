@@ -6,8 +6,9 @@ RUN apt-get update \
 
 COPY conf/mariadb.cnf /etc/mysql/mariadb.conf.d/99-inception.cnf
 COPY tools/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY tools/healthcheck.sh /usr/local/bin/healthcheck.sh
 
-RUN chmod +x /usr/local/bin/entrypoint.sh \
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh \
 	&& mkdir -p /var/lib/mysql \
 	&& chown -R mysql:mysql /var/lib/mysql
 

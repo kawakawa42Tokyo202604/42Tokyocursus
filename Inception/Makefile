@@ -1,33 +1,45 @@
 COMPOSE_FILE := srcs/docker-compose.yml
 ENV_FILE := srcs/.env
-LOGIN ?= $(or $(LOGNAME),$(USER),$(shell id -un))
+LOGIN ?= takawaka
 DATA_DIR ?= /home/$(LOGIN)/data
-COMPOSE := DATA_DIR=$(DATA_DIR) docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE)
+COMPOSE := docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE)
 
-.PHONY: all prepare build up down start stop restart logs ps clean browser backup restore-check
+.PHONY: all check-config test prepare build up down start stop restart logs ps clean fclean browser backup restore-check
 
 all: up
 
+check-config:
+	DATA_DIR="$(DATA_DIR)" ./srcs/tools/check-config.sh
+
+test:
+	./srcs/tests/test-storage-recovery.sh
+	sh ./srcs/tests/test-fclean.sh
+	sh ./srcs/tests/test-storage-admin.sh
+
 prepare:
-	mkdir -p $(DATA_DIR)/mariadb $(DATA_DIR)/wordpress $(DATA_DIR)/backups
-	chmod 700 $(DATA_DIR)/backups
+	DATA_DIR="$(DATA_DIR)" ./srcs/tools/prepare-storage.sh
+	DATA_DIR="$(DATA_DIR)" ./srcs/tools/check-config.sh
 
 build: prepare
-	$(COMPOSE) build
+	@set -eu; \
+	services="$$( $(COMPOSE) config --services )"; \
+	for service in $$services; do \
+		$(COMPOSE) build "$$service"; \
+	done
 
-up: prepare
-	$(COMPOSE) up -d --build
+up: build
+	$(COMPOSE) up -d --no-build
 
 down:
 	$(COMPOSE) down
 
-start:
+start: check-config
 	$(COMPOSE) start
 
 stop:
 	$(COMPOSE) stop
 
-restart:
+restart: check-config
 	$(COMPOSE) restart
 
 logs:
@@ -39,11 +51,18 @@ ps:
 clean:
 	$(COMPOSE) down --remove-orphans
 
+fclean:
+	DATA_DIR="$(DATA_DIR)" sh ./srcs/tools/fclean.sh
+
 browser:
-	./tools/open-site.sh
+	./srcs/tools/open-site.sh
 
 backup: prepare
 	$(COMPOSE) run --rm --no-deps --build backup /usr/local/bin/backup.sh now
 
 restore-check: backup
-	$(COMPOSE) --profile ops run --rm --build restore-check
+	status=0; \
+	$(COMPOSE) --profile ops build restore-db restore-check && \
+	$(COMPOSE) --profile ops run --rm restore-check || status=$$?; \
+	$(COMPOSE) --profile ops rm -sf restore-db >/dev/null 2>&1 || true; \
+	exit $$status

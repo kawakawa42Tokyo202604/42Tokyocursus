@@ -5,7 +5,6 @@ RUN apt-get update \
 		findutils \
 		gzip \
 		mariadb-client \
-		mariadb-server \
 		tar \
 	&& rm -rf /var/lib/apt/lists/*
 

@@ -11,6 +11,10 @@ COPY tools/healthcheck.sh /usr/local/bin/healthcheck.sh
 
 RUN chmod 755 /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh
 
+RUN mkdir -p /run/redis \
+	&& chown redis:redis /run/redis \
+	&& chmod 700 /run/redis
+
 EXPOSE 6379
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

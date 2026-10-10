@@ -147,6 +147,12 @@ validate_environment() {
 			return 1
 			;;
 	esac
+	user_login_lower=$(printf '%s' "$WORDPRESS_USER" \
+		| LC_ALL=C tr '[:upper:]' '[:lower:]')
+	if [ "$admin_user_lower" = "$user_login_lower" ]; then
+		echo "WordPress administrator and regular user must be different" >&2
+		return 1
+	fi
 }
 
 write_database_client_config() {
@@ -261,6 +267,9 @@ create_wp_config() {
 		WP_DB_NAME="$MYSQL_DATABASE" \
 		WP_DB_USER="$MYSQL_USER" \
 		WP_DB_HOST="$DB_HOST:$DB_PORT" \
+		WP_REDIS_HOST="$REDIS_HOST" \
+		WP_REDIS_PORT="$REDIS_PORT" \
+		WP_REDIS_PASSWORD_FILE="$REDIS_SECRET" \
 		php /usr/local/bin/create-wp-config.php < "$DB_SECRET"; then
 		echo "Unable to create wp-config.php" >&2
 		return 1
@@ -338,7 +347,11 @@ ensure_user() {
 	user_email=$2
 	user_role=$3
 	password_file=$4
-	if wp_cli user get "$user_login" --field=ID --quiet >/dev/null 2>&1; then
+	if ! user_id=$(wp_cli user list --login="$user_login" --field=ID --quiet); then
+		echo "Unable to look up WordPress user: $user_login" >&2
+		return 1
+	fi
+	if [ -n "$user_id" ]; then
 		return 0
 	fi
 	if ! wp_cli user create "$user_login" "$user_email" \
