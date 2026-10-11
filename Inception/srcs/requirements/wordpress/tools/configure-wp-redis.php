@@ -1,4 +1,5 @@
 <?php
+// 既存の wp-config.php に Redis の接続先・ポート・パスワード設定を追加する。
 
 declare(strict_types=1);
 

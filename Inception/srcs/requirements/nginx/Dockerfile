@@ -1,3 +1,5 @@
+# NGINX と OpenSSL、HTTPS 設定と起動スクリプトを導入するイメージを構築する。
+
 FROM debian:12
 
 RUN apt-get update \

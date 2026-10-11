@@ -1,6 +1,6 @@
 #!/bin/sh
+# VM の初回設定でストレージ管理ヘルパーと sudo 権限を導入する（通常の Make 操作では実行しない）。
 
-# One-time VM administration; ordinary Make commands do not install policy.
 set -eu
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 [ "$(id -u)" -eq 0 ] || { echo 'Run this installer as the VM administrator' >&2; exit 1; }

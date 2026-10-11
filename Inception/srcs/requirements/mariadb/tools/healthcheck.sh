@@ -1,4 +1,5 @@
 #!/bin/sh
+# 秘密ファイルの root パスワードで MariaDB に接続し、SELECT 1 の成功を確認する。
 
 set -eu
 
@@ -38,10 +39,12 @@ chmod 600 "$CONFIG_TMP"
 {
 	printf '%s\n' '[client]'
 	printf '%s\n' 'user=root'
-	printf 'password=%s\n' "$password"
+	printf 'password="%s"\n' "$(printf '%s' "$password" \
+		| sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
 	printf 'protocol=socket\n'
 	printf 'socket=%s\n' "$SOCKET_PATH"
 } > "$CONFIG_TMP"
 unset password
 
-mariadb-admin --defaults-extra-file="$CONFIG_TMP" ping --silent
+mariadb --defaults-extra-file="$CONFIG_TMP" --connect-timeout=2 \
+	--batch --skip-column-names --execute='SELECT 1' >/dev/null

@@ -1,6 +1,6 @@
 #!/bin/sh
+# 安全条件を確認し、評価用リセットとして Docker リソース全体と VM のデータを削除する。
 
-# Evaluation reset: delete all Docker resources and the VM's application data.
 set -eu
 
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)

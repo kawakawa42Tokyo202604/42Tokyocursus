@@ -1,6 +1,6 @@
 #!/bin/sh
+# 実 Docker・systemd・保存領域を操作せず、復旧条件と Make の実行順序をモックで検証する。
 
-# Exercise recovery decisions without touching Docker, systemd, or host storage.
 set -eu
 
 SCRIPT=$(CDPATH= cd -- "$(dirname -- "$0")/../tools" && pwd)/prepare-storage.sh

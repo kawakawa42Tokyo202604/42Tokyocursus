@@ -1,4 +1,5 @@
 #!/bin/sh
+# MariaDB と WordPress を世代別に保存し、整合性確認と古いバックアップの整理を行う。
 
 set -eu
 umask 077
@@ -56,7 +57,9 @@ cleanup_old_backups() {
 		return 0
 	fi
 
+	# A generation reserved before an image build can have an older timestamp.
 	find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -name '20*' \
+		! -name "${final_dir##*/}" \
 		-printf '%f\n' | LC_ALL=C sort | head -n "$remove_count" |
 	while IFS= read -r old_name; do
 		case "$old_name" in
@@ -65,8 +68,18 @@ cleanup_old_backups() {
 	done
 }
 
-if [ "${1:-now}" != now ] || [ "$#" -gt 1 ]; then
-	fail "Usage: backup.sh now"
+if [ "${1:-now}" != now ] || [ "$#" -gt 2 ]; then
+	fail "Usage: backup.sh now [generation]"
+fi
+requested_generation=${2:-}
+if [ -n "$requested_generation" ]; then
+	case "$requested_generation" in
+		*[!A-Za-z0-9_.-]*) fail "Invalid backup generation name" ;;
+	esac
+	case "$requested_generation" in
+		20*) ;;
+		*) fail "Invalid backup generation name" ;;
+	esac
 fi
 
 case "${MYSQL_DATABASE:-}" in
@@ -101,7 +114,7 @@ chmod 700 "$BACKUP_ROOT" "$RUNTIME_DIR"
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
 	echo "Another backup is already running" >&2
-	exit 0
+	exit 1
 fi
 
 trap cleanup EXIT
@@ -114,7 +127,8 @@ db_password=$(read_secret "$DB_SECRET") || exit 1
 	printf '%s\n' 'host=mariadb'
 	printf '%s\n' 'port=3306'
 	printf 'user=%s\n' "$MYSQL_USER"
-	printf 'password=%s\n' "$db_password"
+	printf 'password="%s"\n' "$(printf '%s' "$db_password" \
+		| sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
 } > "$DB_CLIENT_CONFIG"
 unset db_password
 chmod 600 "$DB_CLIENT_CONFIG"
@@ -155,9 +169,12 @@ created_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
 (cd "$TEMP_DIR" && sha256sum database.sql.gz wordpress.tar.gz manifest.txt > SHA256SUMS)
 
-backup_stamp=$(date -u '+%Y%m%dT%H%M%SZ')
+backup_stamp=$requested_generation
+if [ -z "$backup_stamp" ]; then
+	backup_stamp=$(date -u '+%Y%m%dT%H%M%SZ')
+fi
 final_dir="$BACKUP_ROOT/$backup_stamp"
-if [ -e "$final_dir" ]; then
+if [ -z "$requested_generation" ] && [ -e "$final_dir" ]; then
 	final_dir="$BACKUP_ROOT/${backup_stamp}-$(date -u '+%s%N')"
 fi
 if [ -e "$final_dir" ]; then

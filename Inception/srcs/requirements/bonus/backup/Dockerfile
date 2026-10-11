@@ -1,3 +1,5 @@
+# DB と WordPress を定期保存するためのコマンドと cron を備えたイメージを構築する。
+
 FROM debian:12
 
 RUN apt-get update \

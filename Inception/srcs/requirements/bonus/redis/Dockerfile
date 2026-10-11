@@ -1,3 +1,5 @@
+# Redis と起動・ヘルスチェック用スクリプトを導入し、キャッシュ用イメージを構築する。
+
 FROM debian:12
 
 RUN apt-get update \

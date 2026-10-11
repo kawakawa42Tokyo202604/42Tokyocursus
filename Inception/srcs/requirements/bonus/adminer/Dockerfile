@@ -1,3 +1,5 @@
+# PHP と Adminer を導入し、データベース管理画面を配信するイメージを構築する。
+
 FROM debian:12
 
 RUN apt-get update \

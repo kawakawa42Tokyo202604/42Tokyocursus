@@ -1,3 +1,5 @@
+# vsftpd とファイル権限管理用のツールを導入し、FTP サービスのイメージを構築する。
+
 FROM debian:12
 
 RUN apt-get update \

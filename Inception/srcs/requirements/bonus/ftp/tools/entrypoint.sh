@@ -1,4 +1,5 @@
 #!/bin/sh
+# FTP アカウント・共有ファイルの権限・設定を準備し、vsftpd を起動する。
 
 set -eu
 
@@ -60,8 +61,9 @@ prepare_user() {
 	if ! getent passwd "$FTP_USER" >/dev/null 2>&1; then
 		useradd --system --home-dir "$WEB_ROOT" --no-create-home \
 			--shell /usr/sbin/nologin "$FTP_USER"
-	elif [ "$(id -u "$FTP_USER")" -eq 0 ]; then
-		echo "FTP_USER must not be root" >&2
+	elif [ "$(id -u "$FTP_USER")" -eq 0 ] \
+		|| [ "$(id -u "$FTP_USER")" -eq "$(id -u www-data)" ]; then
+		echo "FTP_USER must use a UID different from root and www-data" >&2
 		return 1
 	fi
 

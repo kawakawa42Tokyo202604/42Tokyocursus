@@ -1,3 +1,5 @@
+# バックアップの復元検証に使う一時 MariaDB のイメージを構築する。
+
 FROM debian:12
 
 RUN apt-get update \

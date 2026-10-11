@@ -1,6 +1,6 @@
 #!/bin/sh
+# 一時領域とモックで、ストレージ管理ヘルパーの権限確認・削除・復旧を検証する。
 
-# Test the root helper with command mocks and isolated storage/lock paths.
 set -eu
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/inception-admin-test.XXXXXX")

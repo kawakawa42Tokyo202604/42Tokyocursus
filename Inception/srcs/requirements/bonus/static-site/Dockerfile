@@ -1,3 +1,5 @@
+# 静的ページを Python の HTTP サーバーで配信するイメージを構築する。
+
 FROM debian:12
 
 RUN apt-get update \

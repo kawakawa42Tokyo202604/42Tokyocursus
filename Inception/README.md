@@ -33,8 +33,8 @@ The optional bonus services are also included:
 - **Adminer** provides a MariaDB web interface on port 8081.
 - **Backup** periodically saves a MariaDB dump and the WordPress files without
   publishing a host port.
-- **Restore-check** is an on-demand `ops` profile that restores the latest
-  backup into temporary storage for verification.
+- **Restore-check** is an on-demand `ops` profile that restores the backup
+  created by Make into temporary storage for verification.
 
 ### Architecture
 
@@ -244,7 +244,7 @@ Useful targets:
 | --- | --- |
 | `make` / `make up` | Check configuration, build active service images, and start the stack in the background. |
 | `make check-config` | Validate local files, Compose, and Docker storage without changing them. |
-| `make test` | Run isolated mocked tests for recovery, full cleanup, and the administrator helper without touching the live Docker daemon. |
+| `make test` | Run isolated recovery, cleanup, administrator-helper and service regression tests without touching the live Docker daemon. |
 | `make build` | Build or rebuild active service images without starting containers; restore images are built by `make restore-check`. |
 | `make ps` | Show service status and published ports. |
 | `make logs` | Follow logs from all services; press `Ctrl-C` to stop following. |

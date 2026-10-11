@@ -1,6 +1,6 @@
 #!/bin/sh
+# root 所有の保護されたコピーとして使う、Docker の保存先確認・削除・復旧用ヘルパー。
 
-# Install a root-owned copy. Never authorize an editable repository script.
 set -eu
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH

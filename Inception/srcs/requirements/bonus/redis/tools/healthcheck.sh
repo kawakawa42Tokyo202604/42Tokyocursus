@@ -1,4 +1,5 @@
 #!/bin/sh
+# 秘密ファイルのパスワードで Redis に認証し、PING の応答を確認する。
 
 set -eu
 
@@ -19,7 +20,8 @@ if printf '%s' "$password" | LC_ALL=C grep -q '[[:cntrl:]]'; then
 fi
 
 {
-	printf 'AUTH default %s\n' "$password"
+	printf 'AUTH default "%s"\n' "$(printf '%s' "$password" \
+		| sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
 	printf 'PING\n'
 } | redis-cli -s /run/redis/redis.sock --raw --no-auth-warning 2>/dev/null \
 	| grep -qx 'PONG'

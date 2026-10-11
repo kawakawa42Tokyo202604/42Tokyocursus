@@ -1,3 +1,5 @@
+# MariaDB と設定・初期化・ヘルスチェック用スクリプトを導入するイメージを構築する。
+
 FROM debian:12
 
 RUN apt-get update \

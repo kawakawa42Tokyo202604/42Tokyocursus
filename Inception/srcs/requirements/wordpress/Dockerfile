@@ -1,3 +1,5 @@
+# WordPress、PHP-FPM、WP-CLI と Redis キャッシュ用プラグインを導入するイメージを構築する。
+
 FROM debian:12
 
 RUN apt-get update \

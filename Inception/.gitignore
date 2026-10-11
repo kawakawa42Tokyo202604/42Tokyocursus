@@ -1,3 +1,5 @@
+# ローカル設定、秘密情報、生成物などを Git の追跡対象から除外する。
+
 # Local environment files. Keep the example configuration tracked.
 /.env
 /.env.*
@@ -35,3 +37,4 @@ Thumbs.db
 message.txt
 Inception*
 制作フロー.md
+問題点.md

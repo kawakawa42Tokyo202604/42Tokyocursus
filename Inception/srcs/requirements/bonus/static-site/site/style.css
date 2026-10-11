@@ -1,3 +1,5 @@
+/* 静的ページの配色、中央配置、カードとリンクの見た目を定義する。 */
+
 :root {
   color-scheme: dark;
   font-family: system-ui, sans-serif;

@@ -1,6 +1,6 @@
 #!/bin/sh
+# 実 Docker や実データを操作せず、fclean の安全条件と操作順序をモックで検証する。
 
-# Never call real Docker or delete real application data in these tests.
 set -eu
 
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)

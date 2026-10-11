@@ -1,2 +1,3 @@
-# Only the root-owned VM storage helper is authorized without a password.
+# root 所有のストレージ管理ヘルパーの指定操作だけを、takawaka にパスワードなしの sudo で許可する。
+
 takawaka ALL=(root) NOPASSWD: /usr/local/sbin/inception-storage-admin check, /usr/local/sbin/inception-storage-admin clean-data, /usr/local/sbin/inception-storage-admin recover

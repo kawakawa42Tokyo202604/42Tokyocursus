@@ -1,3 +1,5 @@
+# 静的サイトのビルドに必要な Dockerfile と site/ だけを Docker へ送る。
+
 *
 !Dockerfile
 !site/

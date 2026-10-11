@@ -1,4 +1,5 @@
 <?php
+// DB 接続・Redis 設定・認証用ソルトを含む wp-config.php を生成する。
 
 declare(strict_types=1);
 

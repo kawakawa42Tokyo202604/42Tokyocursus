@@ -182,6 +182,8 @@ ssh -N -p 2222 -L 127.0.0.1:8081:127.0.0.1:8081 takawaka@127.0.0.1
 
 For FTP, use the `FTP_USER` value from `srcs/.env`, the password in
 `secrets/ftp_password.txt`, host `127.0.0.1` inside the VM, and port `21`.
+Use a dedicated FTP account. An existing account must have a UID different from
+root and the PHP-FPM user (www-data); aliases sharing either UID are rejected.
 Enable passive mode. FTP has no transport encryption, so it also binds to
 localhost. Keep `FTP_PASV_ADDRESS=127.0.0.1` for local clients and SSH tunnels.
 Remote FTP requires forwarding the control port (use local port 2121) and all
@@ -223,6 +225,8 @@ Incomplete generations are not published as completed backups. Old completed
 generations are removed according to `BACKUP_RETENTION` (seven by default).
 The backup directory and generated archives use owner-only permissions because
 the WordPress archive includes `wp-config.php`.
+If another backup holds the lock, the command fails without creating a
+generation. Wait for that backup to finish and retry.
 
 Create a fresh backup and verify the complete restore path:
 
@@ -230,6 +234,8 @@ Create a fresh backup and verify the complete restore path:
 make restore-check
 ```
 
+Make passes the new generation's name to the restore check, so that exact
+generation is verified. Backup failure stops the verification.
 The check validates the checksums, extracts the WordPress archive into a
 temporary directory, imports the SQL dump into a temporary MariaDB service on
 an internal private network, and checks that WordPress tables and options were

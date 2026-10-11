@@ -1,4 +1,5 @@
 #!/bin/sh
+# 指定世代または最新のバックアップを一時領域に復元し、整合性と DB・WordPress データを検証する。
 
 set -eu
 
@@ -25,14 +26,23 @@ trap 'exit 143' TERM
 
 [ -d "$BACKUP_ROOT" ] || fail "Backup volume is unavailable"
 
-latest_name=$(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 \
-	-type d -name '20*' -printf '%f\n' | LC_ALL=C sort | tail -n 1)
-[ -n "$latest_name" ] || fail "No completed backup was found"
-case "$latest_name" in
+[ "$#" -le 1 ] || fail "Usage: restore-check.sh [generation]"
+backup_name=${1:-}
+if [ -z "$backup_name" ]; then
+	backup_name=$(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 \
+		-type d -name '20*' -printf '%f\n' | LC_ALL=C sort | tail -n 1)
+fi
+[ -n "$backup_name" ] || fail "No completed backup was found"
+case "$backup_name" in
 	''|*[!A-Za-z0-9T_.-]*) fail "Invalid backup directory name" ;;
 esac
+case "$backup_name" in
+	20*) ;;
+	*) fail "Invalid backup directory name" ;;
+esac
 
-latest="$BACKUP_ROOT/$latest_name"
+latest="$BACKUP_ROOT/$backup_name"
+[ -d "$latest" ] || fail "Requested backup generation was not found: $backup_name"
 for required_file in SHA256SUMS manifest.txt database.sql.gz wordpress.tar.gz; do
 	[ -f "$latest/$required_file" ] || fail "Backup is missing $required_file"
 done
@@ -102,4 +112,4 @@ esac
 [ "$option_count" -gt 0 ] || fail "Restored WordPress options table is empty"
 
 printf 'Restore verification succeeded: %s (%s tables, %s options)\n' \
-	"$latest_name" "$table_count" "$option_count"
+	"$backup_name" "$table_count" "$option_count"

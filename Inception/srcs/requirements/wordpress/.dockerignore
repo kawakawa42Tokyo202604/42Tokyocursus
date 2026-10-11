@@ -1,3 +1,5 @@
+# WordPress のビルドに必要な Dockerfile・conf/・tools/ だけを Docker へ送る。
+
 *
 !Dockerfile
 !conf/

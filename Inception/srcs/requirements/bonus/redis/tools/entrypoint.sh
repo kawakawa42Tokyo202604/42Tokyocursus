@@ -1,4 +1,5 @@
 #!/bin/sh
+# 秘密ファイルから認証設定を作成し、Redis を専用ユーザーで起動する。
 
 set -eu
 
@@ -53,7 +54,8 @@ mkdir -p "$RUNTIME_DIR"
 chmod 700 "$RUNTIME_DIR"
 CONFIG_TMP=$(mktemp "$RUNTIME_DIR/redis.conf.XXXXXX")
 cat "$CONFIG_TEMPLATE" > "$CONFIG_TMP"
-printf 'requirepass %s\n' "$REDIS_PASSWORD" >> "$CONFIG_TMP"
+printf 'requirepass "%s"\n' "$(printf '%s' "$REDIS_PASSWORD" \
+	| sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')" >> "$CONFIG_TMP"
 unset REDIS_PASSWORD
 chmod 600 "$CONFIG_TMP"
 chown redis:redis "$CONFIG_TMP"

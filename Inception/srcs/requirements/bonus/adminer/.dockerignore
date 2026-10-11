@@ -1,2 +1,4 @@
+# Adminer のビルドに必要な Dockerfile だけを Docker へ送る。
+
 *
 !Dockerfile

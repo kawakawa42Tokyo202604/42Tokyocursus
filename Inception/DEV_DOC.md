@@ -98,6 +98,7 @@ or modify system permissions.
     │   └── open-site.sh
     ├── tests/
     │   ├── test-fclean.sh
+    │   ├── test-service-regressions.sh
     │   ├── test-storage-admin.sh
     │   └── test-storage-recovery.sh
     └── requirements/
@@ -356,7 +357,7 @@ the existing named volumes. It does not reset the installed site.
 | `make` / `make up` | Check configuration, build active services and start the stack. |
 | `make build` | Check configuration and build active service images without starting containers. |
 | `make check-config` | Validate local files, Compose, and Docker storage without mutation. |
-| `make test` | Run isolated mocked recovery, cleanup and administrator-helper checks. |
+| `make test` | Run isolated recovery, cleanup, administrator-helper and service regression checks. |
 | `make ps` | Display the current service state and published ports. |
 | `make logs` | Follow logs from all services; `Ctrl-C` stops following and leaves containers running. |
 | `make browser` | Open the default HTTPS address from the VM graphical session. |
@@ -368,6 +369,12 @@ the existing named volumes. It does not reset the installed site.
 | `make down` | Remove containers and the project network. |
 | `make clean` | Remove containers and orphan containers while preserving data. |
 | `make fclean` | As takawaka with the installed helper, delete all Docker resources and `/home/takawaka/data/*`, including database, WordPress and backups. |
+
+`make restore-check` passes one unique generation name to
+`backup.sh now [generation]` and `restore-check.sh [generation]`.
+It stops if backup creation fails, including a lock conflict, and verifies
+that exact generation. Running the restore script without a generation
+still selects the latest completed backup for an ad-hoc check.
 
 Direct Compose commands must use the same file and environment file as the
 Makefile. For example:
@@ -515,6 +522,12 @@ Use a disposable VM for the complete deletion test. The exact procedure is in
 [STORAGE_RECOVERY.md](srcs/docker/STORAGE_RECOVERY.md). `make test` covers
 recovery decisions, full cleanup safeguards and Make's execution order with
 mocked system commands; it does not require Docker or administrator access.
+The service regression suite also covers credential failures, FTP UID
+restrictions, backup failures and selection of the requested restore generation.
+When available, `my_print_defaults` verifies password round trips through the
+real MariaDB option-file parser, and `redis-server` validates the rendered
+configuration with all listeners disabled. Those parser checks are explicitly
+skipped when the tools are absent.
 
 ## Peer-review preparation and technical checks
 
@@ -560,8 +573,13 @@ or wrappers. If the repository is empty, stop and verify the submission.
 Agent forwarding works only in the `ssh -A` session while the workstation's
 agent can sign with a key registered to the account. An independent VM desktop
 terminal does not inherit that forwarded agent. To clone directly from the VM
-desktop, its own SSH agent must have an unlocked key registered with 42 Intra;
-check with `ssh-add -l` and use the same clone commands above.
+desktop, make the private key corresponding to a public key registered with
+42 Intra available to SSH. It can use a local key file directly, including one
+selected with `ssh -i`, or an unlocked key in the VM's own SSH agent.
+`ssh-add -l` checks agent-held keys only; an empty or unavailable agent does not
+prevent authentication with a local key file. For a key outside the default
+paths, configure `IdentityFile` for the repository host in `~/.ssh/config`.
+Use the same clone commands above.
 A prompt reading `Enter passphrase for key`
 refers to the private SSH key; an Intra web password does not unlock that key.
 Clone as the ordinary user. Use the VM's graphical terminal for
@@ -661,8 +679,8 @@ date: Debian 12 is oldstable while Debian 13 is stable as of 2026-10-10.
 Every service has a build context and an image named `<service>:inception`;
 ready-made service images are not used. The Make dry run must show a loop that
 builds the active services one at a time after storage and configuration checks,
-followed by Compose `up -d --no-build`. `make test` runs isolated mocked storage
-and cleanup checks and does not build or touch the live daemon.
+followed by Compose `up -d --no-build`. `make test` runs isolated storage,
+cleanup and service checks and does not build or touch the live daemon.
 
 ### 3. Perform the evaluation reset
 

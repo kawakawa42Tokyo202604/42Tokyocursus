@@ -1,4 +1,5 @@
 #!/bin/sh
+# WordPress と利用者・Redis キャッシュを初期設定し、PHP-FPM を起動する。
 
 set -eu
 
@@ -164,7 +165,8 @@ write_database_client_config() {
 		printf 'host=%s\n' "$DB_HOST"
 		printf 'port=%s\n' "$DB_PORT"
 		printf 'user=%s\n' "$MYSQL_USER"
-		printf 'password=%s\n' "$client_password"
+		printf 'password="%s"\n' "$(printf '%s' "$client_password" \
+			| sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
 	} > "$DB_CLIENT_CONFIG"
 	unset client_password
 	chmod 600 "$DB_CLIENT_CONFIG"
@@ -174,10 +176,10 @@ wait_for_database() {
 	attempt=1
 	max_attempts=30
 	while [ "$attempt" -le "$max_attempts" ]; do
-		if mariadb-admin --defaults-extra-file="$DB_CLIENT_CONFIG" \
+		if mariadb --defaults-extra-file="$DB_CLIENT_CONFIG" \
 			--protocol=tcp --connect-timeout=2 \
 			--host="$DB_HOST" --port="$DB_PORT" \
-			ping --silent >/dev/null 2>&1; then
+			--execute='SELECT 1' >/dev/null 2>&1; then
 			return 0
 		fi
 

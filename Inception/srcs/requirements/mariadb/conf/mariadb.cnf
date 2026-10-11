@@ -1,3 +1,5 @@
+# MariaDB の待受アドレス・ポート、データ保存先と Unix ソケットを設定する。
+
 [mysqld]
 bind-address = 0.0.0.0
 port = 3306
