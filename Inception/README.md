@@ -2,6 +2,8 @@
 
 # Inception
 
+Japanese translation: [README_ja.md](README_ja.md).
+
 ## Description
 
 Inception is a system administration project that builds a small web
@@ -88,8 +90,11 @@ ports listed above.
 | `srcs/requirements/bonus/restore-check/` | Backup archive and restore verification client. |
 | `srcs/requirements/bonus/restore-db/` | Temporary MariaDB service used only by Restore-check. |
 | `secrets/` | Local secret files; its contents are ignored by Git. |
+| `README_ja.md` | Supplementary Japanese project overview and instructions. |
 | `USER_DOC.md` | End-user and administrator instructions. |
+| `USER_DOC_ja.md` | Supplementary Japanese user documentation. |
 | `DEV_DOC.md` | Developer setup, operation, and persistence details. |
+| `DEV_DOC_ja.md` | Supplementary Japanese developer documentation. |
 
 ### Docker storage files
 
@@ -279,12 +284,15 @@ Docker storage path checked by Make; it does not reconfigure the daemon.
 See [USER_DOC.md](USER_DOC.md) for routine operation and troubleshooting, and
 [DEV_DOC.md](DEV_DOC.md) for setup and development details.
 
+Japanese translations are available in [USER_DOC_ja.md](USER_DOC_ja.md) and
+[DEV_DOC_ja.md](DEV_DOC_ja.md).
+
 For the defense, start with the
-[command checklist](USER_DOC.md#review-command-checklist), then follow the
-[peer-review walkthrough](USER_DOC.md#peer-review-walkthrough) and the
-[developer review guide](DEV_DOC.md#peer-review-preparation-and-technical-checks).
+[command checklist](USER_DOC.md#operation-command-checklist), then follow the
+[service verification procedures](USER_DOC.md#service-verification-procedures) and the
+[developer inspection guide](DEV_DOC.md#source-inspection-and-functional-verification).
 For database and reboot checks, use the
-[minimal and extended commands for 6.9 / 6.10](USER_DOC.md#review-commands-for-69-and-610).
+[database and persistence commands](USER_DOC.md#database-and-persistence-commands).
 Together they cover the evaluation checklist: official source and credential
 checks, initial cleanup, startup, TLS, users and database access, volumes,
 browser edits, VM reboot, a service configuration change, and all five bonuses.

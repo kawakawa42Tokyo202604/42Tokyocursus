@@ -108,5 +108,5 @@ test service adapter. Image rebuild, new named volumes, networks, containers,
 and data persistence succeeded. That test used rootless Docker with `vfs` and
 does not replace the VM's systemd and full WordPress stack validation.
 Use the sequence above on the project VM for that validation; the
-[review walkthrough](../../USER_DOC.md#peer-review-walkthrough) covers the
+[service verification procedures](../../USER_DOC.md#service-verification-procedures) cover the
 full application checks.

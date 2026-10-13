@@ -1,5 +1,7 @@
 # Developer Documentation
 
+Japanese translation: [DEV_DOC_ja.md](DEV_DOC_ja.md).
+
 This document describes how to prepare, build, operate, and inspect the
 Inception development environment.
 
@@ -11,7 +13,7 @@ Use a Linux virtual machine with:
 - Docker Compose v2.17 or newer (the supplied VM uses Compose v5)
 - GNU Make
 - Git
-- Bash for the review shell
+- Bash for the verification commands
 - `less` for browsing source files
 - `curl` and OpenSSL for HTTPS verification
 - Permission to create `/home/takawaka/data` and access the Docker daemon
@@ -77,8 +79,11 @@ or modify system permissions.
 .
 ├── Makefile
 ├── README.md
+├── README_ja.md
 ├── USER_DOC.md
+├── USER_DOC_ja.md
 ├── DEV_DOC.md
+├── DEV_DOC_ja.md
 ├── secrets/
 └── srcs/
     ├── .env
@@ -131,29 +136,32 @@ pulled.
 
 ### Docker storage files
 
-`srcs/docker/` は、VMのDockerデーモンの保存先と管理操作に関するファイルです。
-サービスをビルドするDockerfileは `srcs/requirements/` にあります。
+`srcs/docker/` contains the VM's Docker daemon storage configuration and
+administrative utilities. Service Dockerfiles are under `srcs/requirements/`.
 
-| ファイル | 役割 |
+| File | Purpose |
 | --- | --- |
-| `daemon.json` | `data-root` を `/home/takawaka/data/docker` にする設定例。Dockerのvolumeを必要な保存先の下に置きます。 |
-| `inception-storage-admin.sh` | 管理者権限で `check`（保存先の検査）、`clean-data`（Docker資源を削除した後のdata削除）、`recover`（保存先消失後のDocker再起動）を行います。 |
-| `inception-storage.sudoers` | `takawaka` に、インストール済みヘルパーの上記3操作をパスワードなしで実行する権限を与える設定です。 |
-| `STORAGE_RECOVERY.md` | 評価用の全削除後に保存先を作り直す流れ、確認方法、制限を説明します。 |
+| `daemon.json` | Example configuration setting `data-root` to `/home/takawaka/data/docker`, placing Docker volumes under the required storage path. |
+| `inception-storage-admin.sh` | Performs restricted privileged operations: `check` (validate the storage path), `clean-data` (remove data after Docker resources are removed), and `recover` (restart Docker when its data-root is missing). |
+| `inception-storage.sudoers` | Grants `takawaka` passwordless permission to invoke only those three operations through the installed helper. |
+| `STORAGE_RECOVERY.md` | Explains recovery after a complete cleanup, including prerequisites, verification, and limitations. |
 
-`daemon.json` は[初期設定](#4-prepare-persistent-storage)で `/etc/docker/daemon.json`
-へ既存設定を保ちながら反映します。リポジトリに置いただけではDockerの設定は変わりません。
-ヘルパーとsudo設定は[管理者による初回インストール](#one-time-storage-permission-setup-on-a-fresh-vm)
-でroot所有の固定パスへ配置します。その後は `takawaka` のMakeから必要な管理操作を呼び出します。
+During [initial setup](#4-prepare-persistent-storage), merge `daemon.json`
+into `/etc/docker/daemon.json` without discarding existing settings. Merely
+placing the example file in the repository does not change Docker's configuration.
+The [one-time administrator setup](#one-time-storage-permission-setup-on-a-fresh-vm)
+installs root-owned copies of the helper and sudo policy at fixed locations.
+Thereafter, Make can call the permitted administrative operations as `takawaka`.
 
-呼び出しの流れは次のとおりです。
+Invocation paths:
 
-- `make fclean` → `srcs/tools/fclean.sh` → ヘルパーの `check`・`clean-data`。
-- 全削除後の `make` → `srcs/tools/prepare-storage.sh` → 必要な場合にヘルパーの `recover`。
+- `make fclean` → `srcs/tools/fclean.sh` → helper operations `check` and `clean-data`.
+- `make` after a complete cleanup → `srcs/tools/prepare-storage.sh` → helper operation `recover` when needed.
 
-`clean-data` はコンテナ・イメージ・volume・カスタムネットワークが残っている場合に停止します。
-`recover` は保存先が消失し、コンテナが残っていない等の条件を確認してからDockerを再起動します。
-削除済みのサイトやDBをバックアップから戻す処理は含みません。
+`clean-data` refuses to run while containers, images, volumes, or custom
+networks remain. `recover` checks that storage is missing and no containers
+remain before restarting Docker. It does not restore deleted website or database
+contents from backups.
 
 ## Set up the environment from scratch
 
@@ -203,7 +211,7 @@ After copying, fill all four fields in `srcs/.env` **before** running Make.
 Blank values in the local file cause WordPress startup to fail. Review every
 other required setting as well.
 
-For a local test or defense, valid demo values are sufficient, for example:
+For local development or functional testing, valid demo values are sufficient, for example:
 
 ```dotenv
 WORDPRESS_ADMIN_USER=taka_owner
@@ -315,7 +323,7 @@ creates the volumes when the application starts; no `driver_opts` or bind mounts
 are used for persistent application data.
 
 `make prepare` first checks whether the empty system Docker daemon needs
-recovery after evaluation cleanup, then runs `make check-config`'s checks.
+recovery after a complete cleanup, then runs `make check-config`'s checks.
 It does not delete data or generate credentials. See the reset procedure below.
 
 The project name is `inception`, independent of the clone directory. `LOGIN`
@@ -368,7 +376,7 @@ the existing named volumes. It does not reset the installed site.
 | `make restore-check` | Create a fresh backup and verify restoration in isolated temporary storage. |
 | `make down` | Remove containers and the project network. |
 | `make clean` | Remove containers and orphan containers while preserving data. |
-| `make fclean` | As takawaka with the installed helper, delete all Docker resources and `/home/takawaka/data/*`, including database, WordPress and backups. |
+| `make fclean` | As `takawaka` with the installed helper, delete all Docker resources and `/home/takawaka/data/*`, including database, WordPress, and backups. |
 
 `make restore-check` passes one unique generation name to
 `backup.sh now [generation]` and `restore-check.sh [generation]`.
@@ -500,15 +508,15 @@ Compose source, stop Docker, move its data-root back, restore daemon settings,
 start Docker, and start the old `srcs` project. If the new site has accepted
 writes, first preserve those changes; the original volumes are then stale.
 
-### Evaluation reset
+### Complete cleanup and storage recovery
 
-The evaluation removes all Docker resources, then deletes
-`/home/takawaka/data/*` while Docker is still running. This also removes its
-metadata. Make invokes `srcs/tools/prepare-storage.sh` before configuration
-checks and Compose builds. When the data-root is missing, the script verifies
-the local system daemon and the absence of all containers, then uses the
-installed helper to restart `docker.service` once. Docker recreates its
-storage and Compose can build a fresh installation.
+A complete cleanup removes Docker resources and then deletes
+`/home/takawaka/data/*` while Docker is still running. This also removes
+Docker's metadata. Make invokes `srcs/tools/prepare-storage.sh` before
+configuration checks and Compose builds. When the data-root is missing, the
+script verifies the local system daemon and absence of all containers, then
+uses the installed helper to restart `docker.service` once. Docker recreates
+its storage so Compose can build a fresh installation.
 
 Ordinary builds leave the daemon running. If the endpoint is remote, containers
 remain, the configured path differs, or recovery fails, Make stops before
@@ -529,21 +537,22 @@ real MariaDB option-file parser, and `redis-server` validates the rendered
 configuration with all listeners disabled. Those parser checks are explicitly
 skipped when the tools are absent.
 
-## Peer-review preparation and technical checks
+## Source inspection and functional verification
 
-This guide and the [USER_DOC walkthrough](USER_DOC.md#peer-review-walkthrough)
-cover the supplied evaluation checklist. Use the
-[item-by-item command checklist](USER_DOC.md#review-command-checklist) to
-find the minimal commands and detailed demonstrations. Only the official
-submitted source is evaluated, and the learner must be present. Review automation and the
-transparent shell helpers with the evaluator before using them. If a required
-check fails, investigate it before moving on to bonuses.
+Use these procedures alongside the
+[USER_DOC service verification procedures](USER_DOC.md#service-verification-procedures)
+and its [operation command checklist](USER_DOC.md#operation-command-checklist).
+They cover source provenance, configuration, safe storage cleanup, container
+behavior, service configuration changes, and diagnostics. Use a known source
+revision and inspect shell helpers before running them. Investigate failed
+checks before proceeding to dependent services.
 
-### 1. Clone and identify the submitted repository
+### 1. Clone and identify the source repository
 
-Use the SSH repository URL shown on the current 42 Intra project page, not an
-old working copy or an unsubmitted local tree. On the workstation, the following
-connection forwards its already-unlocked SSH agent to the VM:
+To inspect a reproducible source revision, use the SSH repository URL shown on
+the current 42 Intra project page rather than an unrelated working copy. On
+the workstation, the following connection forwards an already-unlocked SSH
+agent to the VM:
 
 ```sh
 ssh-add -l
@@ -565,10 +574,11 @@ alias
 ```
 
 Replace the quoted repository URL before executing the clone. The new parent
-is empty and the clone directory does not exist yet. Confirm owner, project,
-submitted commit, and a clean tracked worktree. The command-location and alias
-checks help expose replacements for the real tools; read suspicious functions
-or wrappers. If the repository is empty, stop and verify the submission.
+directory is empty and the clone destination does not exist yet. Confirm the
+repository owner, project, intended commit, and a clean tracked worktree. The
+command-location and alias checks help identify unexpected wrappers or tool
+replacements; inspect any that appear suspicious. If the repository is empty,
+verify that the correct remote URL was used.
 
 Agent forwarding works only in the `ssh -A` session while the workstation's
 agent can sign with a key registered to the account. An independent VM desktop
@@ -585,13 +595,13 @@ refers to the private SSH key; an Intra web password does not unlock that key.
 Clone as the ordinary user. Use the VM's graphical terminal for
 browser checks.
 
-### 2. Prepare the review shell and inspect the submission
+### 2. Prepare the shell and inspect the project files
 
 Complete the environment, secret, name-resolution, and storage setup above.
-Do not overwrite an existing environment file. Review its non-secret settings
+Do not overwrite an existing environment file. Inspect its non-secret settings
 and prepare the local secrets; valid demo account values may remain.
-Use the ordinary takawaka shell from the clone; the storage helper supplies
-the reset/recovery permissions automatically:
+Run the commands as `takawaka` from the cloned repository. The installed
+storage helper supplies the cleanup and recovery permissions when necessary:
 
 ```sh
 unset COMPOSE_PROJECT_NAME
@@ -608,16 +618,16 @@ docker info --format '{{.DockerRootDir}}'
 dc config --quiet
 ```
 
-Expect the takawaka account, the official clone as the current directory, a
-local VM Docker daemon, and data-root `/home/takawaka/data/docker`. Read the active endpoint
-with `docker context inspect` and check `DOCKER_HOST`/`DOCKER_CONTEXT` if set.
-Never perform the reset against a workstation or remote daemon. The helpers
-are already loaded from takawaka's `~/.bashrc` on the supplied VM. Use
-`type dc wp_review` to show their definitions; an existing Bash terminal can
-reload them with `source ~/.bashrc`. On a fresh VM, define them again in a
-new shell or after reboot.
+Confirm the `takawaka` account, the intended source directory, a local VM
+Docker daemon, and data-root `/home/takawaka/data/docker`. Inspect the active
+endpoint with `docker context inspect` and check `DOCKER_HOST` and
+`DOCKER_CONTEXT` if set. Never run destructive cleanup against a workstation
+or remote daemon. The helper functions are already loaded from `~/.bashrc`
+on the supplied VM. Use `type dc wp_review` to inspect their definitions;
+reload an existing Bash shell using `source ~/.bashrc`. On a fresh VM, define
+them in each new shell as needed, including after reboot.
 
-Check required files, README format, and tracked credential candidates:
+Check required project files, README structure, and possible tracked credentials:
 
 ```sh
 for review_file in Makefile README.md USER_DOC.md DEV_DOC.md srcs/docker-compose.yml; do
@@ -634,16 +644,16 @@ git check-ignore -v srcs/.env secrets/*.txt
 git grep -Il -i -E 'PRIVATE KEY|API[_-]?KEY|TOKEN|PASSWORD|PASSWD' -- srcs Makefile
 ```
 
-The first README line must be the italicized curriculum statement with the
-actual login. Required documentation must be nonempty, and Resources must
-explain AI use. Only `secrets/.gitkeep` may appear in the credential-file
-listing. The final command prints filenames rather than credential values;
-references to secret files and variable names are legitimate matches.
-Manually inspect candidates and the submitted source, and check Git history
-if needed. These searches alone cannot prove that no credential was committed.
-Stop if actual credentials are in the submitted repository. Do not display
-the contents of local secret files, `wp-config.php`, Redis's rendered
-password configuration, or SQL dumps in review logs.
+The first README line should contain the required italicized curriculum
+statement and login. Documentation files must be nonempty and the Resources
+section should describe AI use. Only `secrets/.gitkeep` should appear in the
+credential-file listing. The final command prints filenames, not secret
+values; legitimate references to secret filenames or environment variables
+may match. Inspect candidate files and Git history when necessary. These
+searches cannot prove that credentials were never committed. If real
+credentials are tracked, remove them from the repository and rotate them.
+Never print local secret files, `wp-config.php`, Redis's rendered password
+configuration, or SQL dumps to terminal logs.
 
 Inspect build definitions and runtime scripts:
 
@@ -674,23 +684,23 @@ keepalive loops. Shell `&&` chains are not background execution.
 There are ten nonempty Dockerfiles, including the two on-demand restore
 services. Each starts with `FROM debian:12`; WordPress and MariaDB do not
 install NGINX. Verify the penultimate stable release against
-[Debian's release list](https://www.debian.org/releases/) on the evaluation
-date: Debian 12 is oldstable while Debian 13 is stable as of 2026-10-10.
+[Debian's release list](https://www.debian.org/releases/) when validating the
+build: Debian 12 is oldstable while Debian 13 is stable as of 2026-10-10.
 Every service has a build context and an image named `<service>:inception`;
 ready-made service images are not used. The Make dry run must show a loop that
 builds the active services one at a time after storage and configuration checks,
 followed by Compose `up -d --no-build`. `make test` runs isolated storage,
 cleanup and service checks and does not build or touch the live daemon.
 
-### 3. Perform the evaluation reset
+### 3. Perform a complete cleanup and fresh startup
 
-**Destructive: the checklist deletes every Docker container, image, volume,
-and removable network in this VM, then all data under
-`/home/takawaka/data/*`. This includes the backup volume.** Obtain agreement
-from the reviewer and the VM owner, and use the dedicated evaluation VM.
-The source clone, environment file, secrets, and any required archive must
-be outside the deletion path. Preserve a verified VM snapshot or external
-backup before deleting data that must be kept.
+**Destructive: the following procedure deletes every Docker container, image,
+volume, and removable network in this VM, then all data under
+`/home/takawaka/data/*`. This includes the backup volume.** Run it only in a
+dedicated, disposable VM with the owner's authorization. Keep the source
+repository, environment file, secrets, and required archives outside the
+deletion path. Preserve a verified VM snapshot or external backup before
+deleting any data that must be retained.
 
 If the current stack contains data to keep, one way to export a completed
 backup is below. Run only with a working stack and the default project name:
@@ -708,11 +718,11 @@ printf 'External backup directory: %s\n' "$review_saved_backups"
 ```
 
 Every command must succeed before proceeding. Keep this directory private:
-the archive includes database data and `wp-config.php`. If canceling the
-reset, use `dc start backup` to resume its scheduler. A generation left only
-in `inception_backup_data` does not survive the reset.
+the archive includes database contents and `wp-config.php`. If canceling the
+cleanup, use `dc start backup` to resume its scheduler. A backup stored only
+in `inception_backup_data` will not survive complete cleanup.
 
-From the takawaka shell in the clone, perform the checklist's full reset:
+From the `takawaka` shell in the cloned repository, perform complete cleanup:
 
 ```sh
 make fclean
@@ -730,12 +740,11 @@ removes all custom networks. Empty lists are skipped. The
 [`type=custom` filter](https://docs.docker.com/reference/cli/docker/network/ls/#type)
 preserves the built-in `bridge`, `host`, and `none` networks.
 After verifying no resources or nested mounts remain, it deletes the
-non-hidden entries under `DATA_DIR`, matching the checklist's final `data/*`
-command. A failure stops the sequence; resolve it before continuing.
-The installed helper supplies the administrator permissions requested by the
-checklist's `sudo` command. It rechecks the fixed path, empty Docker state and
-remaining mounts before deleting data. The sudo policy permits only its three
-fixed operations without a password.
+non-hidden entries under `DATA_DIR` (equivalent to removing `data/*`).
+A failure stops the sequence; resolve it before continuing. The installed
+helper supplies narrowly scoped administrator permissions, rechecking the
+fixed path, empty Docker state, and remaining mounts before deleting data.
+The sudo policy permits only three fixed operations without a password.
 
 Then start the fresh installation from the same takawaka shell:
 
@@ -746,18 +755,18 @@ make ps
 docker info --format '{{.DockerRootDir}}'
 ```
 
-Keep Docker running during the prescribed deletion sequence. If its data-root
-was removed, `make` performs the guarded daemon restart documented in
+Keep Docker running during the cleanup sequence. If its data-root was
+removed, `make` performs the guarded daemon restart documented in
 [STORAGE_RECOVERY.md](srcs/docker/STORAGE_RECOVERY.md), then builds and starts
-a fresh installation. It does not recover deleted content or backups.
-Do this reset once before the functional review, **not** during the later
-persistence test. Continue with
-[USER_DOC Step 1](USER_DOC.md#1-start-and-define-the-review-commands).
+a fresh installation. It cannot recover deleted content or backups.
+Perform this destructive reset only when necessary, **not** during persistence
+tests. Continue with
+[USER_DOC service startup](USER_DOC.md#1-start-the-stack-and-define-checking-commands).
 
 ### 4. Inspect the running infrastructure
 
-Use the helpers from Step 2 after the startup. Confirm images, restart policies,
-and the actual foreground PID 1 processes:
+Use the helper functions from Step 2 after startup. Confirm image names,
+restart policies, and the foreground processes running as PID 1:
 
 ```sh
 dc ps --all
@@ -803,11 +812,11 @@ network is created only for the ops check.
 
 ### 5. Change a service configuration and restore it
 
-The reviewer chooses the service and an available new port. This example
-changes NGINX's **host** HTTPS port from 443 to 8443 while its container
-continues listening on 443. Use the chosen port consistently if it differs.
-This is a temporary demonstration; restore the mandatory port 443 afterward.
-Check all published ports as well as listeners before choosing the new port:
+For a temporary configuration-change test, select a service and an available
+port. The example below changes NGINX's **host** HTTPS port from 443 to 8443
+while its container continues listening on 443. Use the chosen port
+consistently if it differs. Restore the required port 443 afterward.
+Check both published ports and listening sockets before selecting a new port:
 
 ```sh
 ss -ltn '( sport = :8443 )'
@@ -856,10 +865,10 @@ openssl s_client -connect 127.0.0.1:8443 -servername "$review_domain" \
 
 Expect port 8443, HTTP status `200` over HTTPS, and a successful TLS handshake.
 Open `https://takawaka.42.fr:8443/` and `/wp-admin/` manually in the VM
-browser; `make browser` opens the original default-port URL. Demonstrate
-login and the saved page/comment. `make up` rebuilds images and recreates
-containers whose configuration changed. `make restart` alone does not apply
-new port mappings or rebuild images.
+browser; `make browser` opens the original default-port URL. Verify
+login and previously saved page/comment data. `make up` rebuilds images and
+recreates containers whose configuration changed. `make restart` alone does
+not apply new port mappings or rebuild images.
 
 Return Compose, the NGINX configuration, and WordPress URL options to their
 recorded values:
@@ -884,7 +893,7 @@ diff. If the changed configuration fails, use these recorded values to restore
 service before investigating. Do not roll back by deleting volumes or using
 `git reset --hard`.
 
-#### If the reviewer chooses another service
+#### Alternative service configuration changes
 
 Save every source or environment file you will edit outside
 `/home/takawaka/data`, as in the NGINX example. Search the tracked source for
@@ -932,7 +941,7 @@ wp_review config set WP_REDIS_PORT 6380 --type=constant --raw
 Execute only the commands for the selected service and substitute the chosen
 port. Record these original values outside the data directory if changing
 shells. Use `dc config --quiet`, `make up`, `make ps`, and the relevant
-USER_DOC demonstration to verify the modified service and its dependents.
+USER_DOC checks to verify the modified service and its dependents.
 For MariaDB, verify the public WordPress site, SQL login, Adminer, and
 `make restore-check`; for Redis, verify the cross-process cache test.
 
@@ -959,56 +968,56 @@ Then repeat the service checks at the original ports and compare the source
 diff with the saved baseline. Restoring source files alone does not restore
 constants already persisted in the WordPress volume.
 
-### MariaDB and persistence commands (6.9 / 6.10)
+### MariaDB and data persistence commands
 
-[USER_DOCのコマンド比較](USER_DOC.md#review-commands-for-69-and-610)に、
-6.9・6.10の「必要最小限」と「少し詳しい確認」を併記しています。
+The [USER_DOC database and persistence section](USER_DOC.md#database-and-persistence-commands)
+provides both quick checks and more detailed verification steps.
 
-| 項目 | 必要最小限 | 少し詳しい確認 |
+| Area | Quick check | Detailed verification |
 | --- | --- | --- |
-| 6.9 MariaDB | `make ps`、短いDBログイン、`SHOW TABLES;`、ユーザー数 | Dockerfile・volumeの保存先、実行時のDB設定によるログイン、投稿・コメントのSQL確認 |
-| 6.10 永続性 | VM再起動後に同じcloneで `make up ps browser`、同じページ・コメント・DBを確認 | 再起動前後のユーザー・本文・コメント・volumeを比較し、必要に応じてJSONとdiffで記録 |
+| MariaDB | `make ps`, interactive database login, `SHOW TABLES;`, and user count | Inspect the Dockerfile and volume mountpoint; connect using active database settings; query posts and comments. |
+| Persistence | Reboot the VM, run `make up ps browser` in the same clone, and check the site and database | Compare accounts, page contents, comments, and volume mountpoints before and after reboot; optionally save JSON snapshots and compare with `diff`. |
 
-短いDBログインは `.env.example` の初期値を使います。
+The short database login command uses the default values from `.env.example`.
 
 ```sh
 dc exec mariadb mariadb -h127.0.0.1 -u wp_user -p wordpress
 ```
 
-DB名やユーザー名を変えた構成では、コンテナの設定を使います。
+If the database name or username has changed, use the container's active settings.
 
 ```sh
 dc exec mariadb sh -c \
   'exec mariadb --protocol=TCP --host=127.0.0.1 --user="$MYSQL_USER" --password "$MYSQL_DATABASE"'
 ```
 
-どちらも `secrets/db_password.txt` の内容をパスワードのプロンプトへ入力します。
-`-h127.0.0.1` はMariaDBコンテナ内のTCP接続先です。
-VMでの実行ユーザーは `takawaka`、DBへのログインは `MYSQL_USER` です。
-DBの `root` とVMの `root` も別のアカウントです。
-再起動後のMakeは `takawaka` で実行できます。永続性を確認するときは、
-データを保つ通常の起動を使い、全削除の `make fclean` は評価開始時のリセットで使います。
+For either command, enter the password from `secrets/db_password.txt` at the
+prompt. `-h127.0.0.1` refers to the TCP endpoint inside the MariaDB container.
+Run the shell commands as `takawaka` on the VM; connect to the database as
+`MYSQL_USER`. The MariaDB `root` account and VM's `root` account are distinct.
+After reboot, run Make as `takawaka`. For persistence tests, use normal startup
+operations that preserve data; do not use the destructive `make fclean` target.
 
-### Evaluation coverage and explanations
+### Verification coverage and architecture notes
 
-The following table maps the supplied checklist to demonstrations. A command
-result does not replace an explanation or the requested browser action.
+The following table links common operational checks to the relevant commands
+and procedures. Verify the actual browser behavior in addition to CLI output.
 
-| Evaluation item | Demonstration |
+| Area | Verification |
 | --- | --- |
-| Preliminaries / General instructions | Official fresh clone, learner present, command/alias review, credential and required-file inspection; guarded VM-only reset in Steps 1-3 above. |
-| Activity overview | Explain Docker/Compose, images and containers, VM tradeoffs, and repository layout using the points below and README. |
-| README / Documentation | First-line format, Description/Instructions/Resources and AI use; nonempty USER_DOC and DEV_DOC in Step 2. |
-| Simple setup / NGINX with SSL/TLS | [USER_DOC Step 2](USER_DOC.md#2-verify-https-and-tls): port 443, closed port 80, both allowed TLS versions, certificate, configured site in browser. |
-| Docker Basics | Source inspection in Step 2 and runtime Step 4: ten custom Dockerfiles, allowed base, matching images, Make-driven Compose build, foreground service processes. |
-| Docker Network | Compose network definition, bridge network inspection, service-name DNS, and internal-only MariaDB/WordPress/Redis in Step 4. |
-| WordPress with php-fpm and its volume | [USER_DOC Steps 3-4](USER_DOC.md#3-inspect-persistent-volumes): actual volume path, installed WordPress, two users, valid admin login, browser comment and page edit. |
-| MariaDB and its volume | [USER_DOC Steps 3-4](USER_DOC.md#4-demonstrate-wordpress-and-database-access): actual volume path, authenticated SQL session, nonempty tables and users. |
-| Persistence! | [USER_DOC Step 5](USER_DOC.md#5-verify-persistence-across-recreation-and-vm-reboot): actual VM reboot, Make startup, unchanged review content, users, database, and volume paths. |
-| Configuration modification | Step 5 above: available new port, WordPress URL options, rebuild/recreate, browser verification, and return to port 443. |
-| Bonus | [USER_DOC Step 7](USER_DOC.md#7-demonstrate-every-bonus-service): Redis cross-process cache, FTP transfer/shared volume, non-PHP static site, Adminer database login, scheduled backup and verified temporary restoration. |
+| Source and configuration | Fresh clone, command and alias inspection, credential and required-file checks, and guarded cleanup in Steps 1–3 above. |
+| Architecture | Docker/Compose, image-versus-container behavior, VM tradeoffs, and repository layout described below and in README. |
+| Documentation | README structure, Description/Instructions/Resources and AI use, and nonempty USER_DOC and DEV_DOC files. |
+| HTTPS and TLS | [USER_DOC TLS checks](USER_DOC.md#2-verify-https-and-tls): port 443, unavailable port 80, TLS 1.2 and 1.3, certificate, and browser access. |
+| Image construction | Source inspection in Step 2 and runtime inspection in Step 4: custom Dockerfiles, permitted base image, service images, Compose build, and foreground processes. |
+| Docker network | Compose network declaration, bridge configuration, service-name DNS, and internal-only MariaDB/WordPress/Redis in Step 4. |
+| WordPress and PHP-FPM | [USER_DOC volume checks](USER_DOC.md#3-inspect-persistent-volumes) and [application checks](USER_DOC.md#4-check-wordpress-and-database-access): volume path, installed WordPress, distinct users, login, comments, and page changes. |
+| MariaDB | [USER_DOC database checks](USER_DOC.md#4-check-wordpress-and-database-access): volume path, authenticated SQL access, tables, and users. |
+| Persistence | [USER_DOC reboot verification](USER_DOC.md#5-verify-persistence-across-container-recreation-and-vm-reboot): VM reboot, Make startup, retained content, users, database, and volume paths. |
+| Configuration changes | Step 5 above: temporarily change an available port, adjust WordPress URL options if needed, rebuild, verify, and restore the original settings. |
+| Additional services | [USER_DOC additional service checks](USER_DOC.md#7-check-additional-services): Redis cache, FTP transfer, static site, Adminer database access, backup scheduling, and temporary restoration. |
 
-Prepare these short explanations in your own words:
+The following concepts explain the design choices:
 
 - **Docker and Compose:** a Dockerfile builds an image; a container runs that
   image. Compose describes and coordinates services, networks, volumes,
@@ -1035,6 +1044,7 @@ Prepare these short explanations in your own words:
 
 ## Documentation maintenance
 
-Keep `README.md`, `USER_DOC.md`, `DEV_DOC.md`, `srcs/.env.example`, the secret
-file names, and the Compose service names synchronized. Update the documentation
-whenever commands, paths, ports, credentials, or persistence behavior changes.
+Keep `README.md`, `USER_DOC.md`, `DEV_DOC.md`, their Japanese translations,
+`srcs/.env.example`, secret file names, and Compose service names synchronized.
+Update the documentation whenever commands, paths, ports, credentials, or
+persistence behavior changes.
