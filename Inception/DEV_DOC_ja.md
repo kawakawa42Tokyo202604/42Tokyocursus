@@ -460,7 +460,7 @@ unset COMPOSE_PROJECT_NAME
 dc() {
   command docker compose -f srcs/docker-compose.yml --env-file srcs/.env "$@"
 }
-wp_review() {
+wp() {
   dc exec -T wordpress wp --allow-root --path=/var/www/html "$@"
 }
 pwd
@@ -470,7 +470,7 @@ docker info --format '{{.DockerRootDir}}'
 dc config --quiet
 ```
 
-`takawaka`アカウント、意図したソースディレクトリ、VM内のローカルDockerデーモン、data-rootが`/home/takawaka/data/docker`であることを確認します。`docker context inspect`で使用中の接続先を調べ、`DOCKER_HOST`と`DOCKER_CONTEXT`が設定されていればその値も確認してください。作業用PCやリモートデーモンに対して破壊的なクリーンアップを絶対に実行しないでください。提供されたVMでは`~/.bashrc`からヘルパー関数が読み込まれます。`type dc wp_review`で関数定義を確認できます。すでに開いているBashでは`source ~/.bashrc`で再読み込みしてください。新しいVMでは、再起動後も含め必要に応じて新しいシェルごとに関数を定義します。
+`takawaka`アカウント、意図したソースディレクトリ、VM内のローカルDockerデーモン、data-rootが`/home/takawaka/data/docker`であることを確認します。`docker context inspect`で使用中の接続先を調べ、`DOCKER_HOST`と`DOCKER_CONTEXT`が設定されていればその値も確認してください。作業用PCやリモートデーモンに対して破壊的なクリーンアップを絶対に実行しないでください。提供されたVMでは`~/.bashrc`からヘルパー関数が読み込まれます。`type dc wp`で関数定義を確認できます。すでに開いているBashでは`source ~/.bashrc`で再読み込みしてください。新しいVMでは、再起動後も含め必要に応じて新しいシェルごとに関数を定義します。
 
 必要なプロジェクトファイル、READMEの構造、誤ってGitで追跡されている可能性がある認証情報を確認します。
 
@@ -607,8 +607,8 @@ docker ps --format 'table {{.Names}}\t{{.Ports}}'
 review_port_backup=$(mktemp -d /home/takawaka/inception-port-change.XXXXXX)
 cp -p srcs/docker-compose.yml "$review_port_backup/docker-compose.yml"
 cp -p srcs/requirements/nginx/conf/nginx.conf "$review_port_backup/nginx.conf"
-wp_review option get home > "$review_port_backup/home.txt"
-wp_review option get siteurl > "$review_port_backup/siteurl.txt"
+wp option get home > "$review_port_backup/home.txt"
+wp option get siteurl > "$review_port_backup/siteurl.txt"
 review_domain=$(dc exec -T wordpress printenv DOMAIN_NAME)
 : "${review_domain:?Could not read DOMAIN_NAME from WordPress}"
 vim srcs/docker-compose.yml
@@ -625,8 +625,8 @@ fastcgi_param HTTP_HOST $host:8443;
 ```sh
 git diff -- srcs/docker-compose.yml srcs/requirements/nginx/conf/nginx.conf
 dc config --quiet
-wp_review option update home "https://$review_domain:8443"
-wp_review option update siteurl "https://$review_domain:8443"
+wp option update home "https://$review_domain:8443"
+wp option update siteurl "https://$review_domain:8443"
 make up
 make ps
 dc exec -T nginx nginx -t
@@ -646,8 +646,8 @@ Compose設定、NGINX設定、WordPressのURLオプションを記録済みの�
 ```sh
 cp -p "$review_port_backup/docker-compose.yml" srcs/docker-compose.yml
 cp -p "$review_port_backup/nginx.conf" srcs/requirements/nginx/conf/nginx.conf
-wp_review option update home "$(cat "$review_port_backup/home.txt")"
-wp_review option update siteurl "$(cat "$review_port_backup/siteurl.txt")"
+wp option update home "$(cat "$review_port_backup/home.txt")"
+wp option update siteurl "$(cat "$review_port_backup/siteurl.txt")"
 make up
 make ps
 dc port nginx 443
@@ -688,15 +688,15 @@ git grep -n -E '443|9000|3306|6379|8080|21100|21110' \
 既存の`wp-config.php`はentrypointによって保持されます。MariaDBを3307番ポートへ変更する場合、機密情報ではないホスト設定を記録し、古いWordPressコンテナがまだ実行中の間、再ビルドする**前**に更新します。
 
 ```sh
-review_db_host_before=$(wp_review config get DB_HOST)
-wp_review config set DB_HOST 'mariadb:3307' --type=constant
+review_db_host_before=$(wp config get DB_HOST)
+wp config set DB_HOST 'mariadb:3307' --type=constant
 ```
 
 Redisを6380番ポートへ変更する場合は、次の別案を使用します。
 
 ```sh
-review_redis_port_before=$(wp_review config get WP_REDIS_PORT)
-wp_review config set WP_REDIS_PORT 6380 --type=constant --raw
+review_redis_port_before=$(wp config get WP_REDIS_PORT)
+wp config set WP_REDIS_PORT 6380 --type=constant --raw
 ```
 
 選択したサービスのコマンドだけを実行し、ポート番号は選択した値に置き換えてください。作業シェルを変える場合は、元の設定値をデータディレクトリ外に記録しておきます。`dc config --quiet`、`make up`、`make ps`、USER_DOCの該当する検査を使って変更後のサービスとその依存先を検証します。MariaDBについては公開WordPressサイト、SQLログイン、Adminer、`make restore-check`を確認します。Redisについては、別プロセス間でのキャッシュテストを確認します。

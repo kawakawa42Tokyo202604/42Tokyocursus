@@ -608,7 +608,7 @@ unset COMPOSE_PROJECT_NAME
 dc() {
   command docker compose -f srcs/docker-compose.yml --env-file srcs/.env "$@"
 }
-wp_review() {
+wp() {
   dc exec -T wordpress wp --allow-root --path=/var/www/html "$@"
 }
 pwd
@@ -623,7 +623,7 @@ Docker daemon, and data-root `/home/takawaka/data/docker`. Inspect the active
 endpoint with `docker context inspect` and check `DOCKER_HOST` and
 `DOCKER_CONTEXT` if set. Never run destructive cleanup against a workstation
 or remote daemon. The helper functions are already loaded from `~/.bashrc`
-on the supplied VM. Use `type dc wp_review` to inspect their definitions;
+on the supplied VM. Use `type dc wp` to inspect their definitions;
 reload an existing Bash shell using `source ~/.bashrc`. On a fresh VM, define
 them in each new shell as needed, including after reboot.
 
@@ -824,8 +824,8 @@ docker ps --format 'table {{.Names}}\t{{.Ports}}'
 review_port_backup=$(mktemp -d /home/takawaka/inception-port-change.XXXXXX)
 cp -p srcs/docker-compose.yml "$review_port_backup/docker-compose.yml"
 cp -p srcs/requirements/nginx/conf/nginx.conf "$review_port_backup/nginx.conf"
-wp_review option get home > "$review_port_backup/home.txt"
-wp_review option get siteurl > "$review_port_backup/siteurl.txt"
+wp option get home > "$review_port_backup/home.txt"
+wp option get siteurl > "$review_port_backup/siteurl.txt"
 review_domain=$(dc exec -T wordpress printenv DOMAIN_NAME)
 : "${review_domain:?Could not read DOMAIN_NAME from WordPress}"
 vim srcs/docker-compose.yml
@@ -849,8 +849,8 @@ by merely recreating containers, so update them explicitly:
 ```sh
 git diff -- srcs/docker-compose.yml srcs/requirements/nginx/conf/nginx.conf
 dc config --quiet
-wp_review option update home "https://$review_domain:8443"
-wp_review option update siteurl "https://$review_domain:8443"
+wp option update home "https://$review_domain:8443"
+wp option update siteurl "https://$review_domain:8443"
 make up
 make ps
 dc exec -T nginx nginx -t
@@ -876,8 +876,8 @@ recorded values:
 ```sh
 cp -p "$review_port_backup/docker-compose.yml" srcs/docker-compose.yml
 cp -p "$review_port_backup/nginx.conf" srcs/requirements/nginx/conf/nginx.conf
-wp_review option update home "$(cat "$review_port_backup/home.txt")"
-wp_review option update siteurl "$(cat "$review_port_backup/siteurl.txt")"
+wp option update home "$(cat "$review_port_backup/home.txt")"
+wp option update siteurl "$(cat "$review_port_backup/siteurl.txt")"
 make up
 make ps
 dc port nginx 443
@@ -927,15 +927,15 @@ change to 3307, record its non-secret host setting and update it **before**
 rebuilding, while the old WordPress container still runs:
 
 ```sh
-review_db_host_before=$(wp_review config get DB_HOST)
-wp_review config set DB_HOST 'mariadb:3307' --type=constant
+review_db_host_before=$(wp config get DB_HOST)
+wp config set DB_HOST 'mariadb:3307' --type=constant
 ```
 
 For a Redis change to 6380, use this alternative:
 
 ```sh
-review_redis_port_before=$(wp_review config get WP_REDIS_PORT)
-wp_review config set WP_REDIS_PORT 6380 --type=constant --raw
+review_redis_port_before=$(wp config get WP_REDIS_PORT)
+wp config set WP_REDIS_PORT 6380 --type=constant --raw
 ```
 
 Execute only the commands for the selected service and substitute the chosen

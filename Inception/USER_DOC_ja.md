@@ -281,7 +281,7 @@ openssl s_client -connect takawaka.42.fr:443 -servername takawaka.42.fr \
 
 このコマンド一覧を使って、リポジトリ、設定、ネットワーク、TLS、永続データ、追加サービスを検査できます。新規初期化が不要な場合は`make fclean`を避け、既存データを保持してください。
 
-VM内で`takawaka`としてリポジトリのルートからBashで実行します。`dc`、`wp_review`、`review_domain`は[手順1](#1-start-the-stack-and-define-checking-commands)に従って準備してください。表中のリンクは各手順へつながっています。前提条件と期待される結果も確認してください。
+VM内で`takawaka`としてリポジトリのルートからBashで実行します。`dc`、`wp`、`review_domain`は[手順1](#1-start-the-stack-and-define-checking-commands)に従って準備してください。表中のリンクは各手順へつながっています。前提条件と期待される結果も確認してください。
 
 | 対象 | 基本コマンド・操作 | 詳細な確認と手順 |
 | --- | --- | --- |
@@ -295,11 +295,11 @@ VM内で`takawaka`としてリポジトリのルートからBashで実行しま�
 | Dockerイメージ | Dockerfileを調査、`dc config --images`、`make -n up` | [イメージのビルドとベースイメージ](DEV_DOC_ja.md#2-prepare-the-shell-and-inspect-the-project-files)、[再起動動作とPID 1](DEV_DOC_ja.md#4-inspect-the-running-infrastructure) |
 | Dockerネットワーク | `docker network ls`、`docker network inspect inception_inception` | [bridgeネットワーク、サービス名DNS、内部ポート](DEV_DOC_ja.md#4-inspect-the-running-infrastructure) |
 | NGINX / TLS | `dc port nginx 443`、80番ポート、TLS 1.2・1.3を検査 | [curl、OpenSSL、証明書、NGINX設定](#2-verify-https-and-tls) |
-| WordPress / PHP-FPM / ボリューム | `wp_review user list`、ボリューム確認、一般ユーザーでコメント追加、管理者でページ編集 | [ボリュームの保存先](#3-inspect-persistent-volumes)、[アカウントとブラウザーテスト](#4-check-wordpress-and-database-access) |
+| WordPress / PHP-FPM / ボリューム | `wp user list`、ボリューム確認、一般ユーザーでコメント追加、管理者でページ編集 | [ボリュームの保存先](#3-inspect-persistent-volumes)、[アカウントとブラウザーテスト](#4-check-wordpress-and-database-access) |
 | MariaDB / ボリューム | DBへログイン、`SHOW TABLES;`、`SELECT COUNT(*) FROM wp_users;` | [基本・詳細DB確認](#database-and-persistence-commands) |
 | データ永続性 | VM再起動 → 同じcloneで`make up ps browser` → 保存データとDBを確認 | [基本確認](#database-and-persistence-commands)、[JSONスナップショットとボリューム](#5-verify-persistence-across-container-recreation-and-vm-reboot) |
 | 設定変更 | 設定を編集 → `make up` → `make ps` → 変更後のサービスを検査 | [NGINXポート変更と元に戻す例](DEV_DOC_ja.md#5-change-a-service-configuration-and-restore-it) |
-| 追加サービス：Redis | `wp_review redis status`、別プロセス間でキャッシュキーをset/get | [healthcheck、接続、キャッシュの再利用、後片付け](#7-check-additional-services) |
+| 追加サービス：Redis | `wp redis status`、別プロセス間でキャッシュキーをset/get | [healthcheck、接続、キャッシュの再利用、後片付け](#7-check-additional-services) |
 | 追加サービス：FTP | curlでログイン・アップロードし、HTTPSから同じファイルを取得 | [パスワード入力、パッシブ転送、共有ボリューム、後片付け](#7-check-additional-services) |
 | 追加サービス：静的サイト | `curl http://127.0.0.1:8080/`、VMのブラウザーで表示 | [HTTP応答とPHPを含まないソース](#7-check-additional-services) |
 | 追加サービス：Adminer | `http://127.0.0.1:8081/`からDBにログインしWordPressテーブルを確認 | [接続、HTTP確認、SQLクエリ](#7-check-additional-services) |
@@ -320,7 +320,7 @@ VM内で`takawaka`としてリポジトリのルートからBashで実行しま�
 cd ~/asd
 ```
 
-`dc`と`wp_review`は[補助関数](#1-start-the-stack-and-define-checking-commands)です。準備済みVMでは新しいBash端末で使用できます。すでに開いている端末では`source ~/.bashrc`で読み込み直してください。新しいVMではリンク先の手順に従って関数を定義します。
+`dc`と`wp`は[補助関数](#1-start-the-stack-and-define-checking-commands)です。準備済みVMでは新しいBash端末で使用できます。すでに開いている端末では`source ~/.bashrc`で読み込み直してください。新しいVMではリンク先の手順に従って関数を定義します。
 
 | 対象 | 基本確認 | 詳細確認 |
 | --- | --- | --- |
@@ -395,11 +395,11 @@ make up ps browser
 次のコマンドをVM再起動前と、再起動後にスタックが立ち上がってから実行し、結果を比較します。ユーザー、ページ本文、コメント、承認状態、ボリュームパスが変化していないことを確認してください。
 
 ```sh
-wp_review core is-installed
-wp_review user list --fields=ID,user_login,roles --format=table
-wp_review post list --post_type=page --post_status=publish \
+wp core is-installed
+wp user list --fields=ID,user_login,roles --format=table
+wp post list --post_type=page --post_status=publish \
   --fields=ID,post_title,post_content --format=table
-wp_review comment list \
+wp comment list \
   --fields=comment_ID,comment_post_ID,comment_content,comment_approved --format=table
 docker volume inspect inception_wordpress_data inception_mariadb_data \
   --format '{{.Name}} path={{.Mountpoint}}'
@@ -415,7 +415,7 @@ docker volume inspect inception_wordpress_data inception_mariadb_data \
 
 以下は、デフォルトのプロジェクト名が`inception`であると想定します。**VM内部、リポジトリのルートから、`takawaka`として実行します。** Dockerへのアクセスとストレージ用管理者ヘルパーはDEV_DOCの説明どおりに設定してください。ブラウザー操作にはグラフィカルセッションが必要です。
 
-以下のシェル関数はMakefileと同じComposeファイルと環境ファイルを使います。`type dc wp_review`で定義を確認できます。提供されたVMでは`takawaka`の`~/.bashrc`に定義済みであり、新しいBash端末では自動で読み込まれます。開いている端末では`source ~/.bashrc`を実行してください。新しいVMでは、以下のように作業用シェルで定義します。`srcs/.env`はcron値にCompose独自の環境ファイル構文を使用するため、シェルスクリプトとしてsourceしないでください。
+以下のシェル関数はMakefileと同じComposeファイルと環境ファイルを使います。`type dc wp`で定義を確認できます。提供されたVMでは`takawaka`の`~/.bashrc`に定義済みであり、新しいBash端末では自動で読み込まれます。開いている端末では`source ~/.bashrc`を実行してください。新しいVMでは、以下のように作業用シェルで定義します。`srcs/.env`はcron値にCompose独自の環境ファイル構文を使用するため、シェルスクリプトとしてsourceしないでください。
 
 <a id="1-start-the-stack-and-define-checking-commands"></a>
 
@@ -428,7 +428,7 @@ unset COMPOSE_PROJECT_NAME
 dc() {
   command docker compose -f srcs/docker-compose.yml --env-file srcs/.env "$@"
 }
-wp_review() {
+wp() {
   dc exec -T wordpress wp --allow-root --path=/var/www/html "$@"
 }
 make
@@ -516,13 +516,13 @@ data-rootが`/home/takawaka/data/docker`、ドライバーが`local`、オプシ
 インストール状態、WordPressの2アカウント、設定済みURLを確認します。
 
 ```sh
-wp_review core is-installed && printf 'WordPress is installed.\n'
-wp_review user list --fields=ID,user_login,roles --format=table
-wp_review option get home
-wp_review option get siteurl
-wp_review post list --post_type=page --post_status=publish \
+wp core is-installed && printf 'WordPress is installed.\n'
+wp user list --fields=ID,user_login,roles --format=table
+wp option get home
+wp option get siteurl
+wp post list --post_type=page --post_status=publish \
   --fields=ID,post_title,post_status --format=table
-wp_review comment list \
+wp comment list \
   --fields=comment_ID,comment_post_ID,comment_author,comment_approved --format=table
 ```
 
@@ -569,13 +569,13 @@ dc exec mariadb mariadb --user=root --password
 ```sh
 review_evidence=$(mktemp -d /home/takawaka/inception-review.XXXXXX)
 printf 'Keep this evidence path for after reboot: %s\n' "$review_evidence"
-wp_review post list --post_type=page --post_status=publish --orderby=ID --order=ASC \
+wp post list --post_type=page --post_status=publish --orderby=ID --order=ASC \
   --fields=ID,post_title,post_content,post_status --format=json \
   > "$review_evidence/pages.before.json"
-wp_review comment list --orderby=comment_ID --order=ASC \
+wp comment list --orderby=comment_ID --order=ASC \
   --fields=comment_ID,comment_post_ID,comment_content,comment_approved --format=json \
   > "$review_evidence/comments.before.json"
-wp_review user list --orderby=ID --order=ASC \
+wp user list --orderby=ID --order=ASC \
   --fields=ID,user_login,roles --format=json > "$review_evidence/users.before.json"
 make down
 make up
@@ -584,7 +584,7 @@ make ps
 
 公開ページとコメントをもう一度開き、両方のテスト用目印が残っていることを確認します。この操作で確認できるのはコンテナの再作成であり、VMそのものの再起動ではありません。`--volumes`を使用したり、`make fclean`を実行したりしないでください。
 
-開いている作業を保存した後、VM内のグラフィカルセッションの電源メニューからDebianを再起動します。再起動後に`takawaka`でログインし、Bash端末を開いて同じcloneへ移動します。SSHを使用する場合は`ssh -A`で再接続します。`COMPOSE_PROJECT_NAME`を解除し、手順1にあるように`dc`と`wp_review`が使用できることを確認します。`review_evidence`には再起動前に表示された正確なパスを設定してください。次の例のパスは書き換える必要があります。
+開いている作業を保存した後、VM内のグラフィカルセッションの電源メニューからDebianを再起動します。再起動後に`takawaka`でログインし、Bash端末を開いて同じcloneへ移動します。SSHを使用する場合は`ssh -A`で再接続します。`COMPOSE_PROJECT_NAME`を解除し、手順1にあるように`dc`と`wp`が使用できることを確認します。`review_evidence`には再起動前に表示された正確なパスを設定してください。次の例のパスは書き換える必要があります。
 
 ```sh
 unset COMPOSE_PROJECT_NAME
@@ -592,14 +592,14 @@ review_evidence=/home/takawaka/inception-review.REPLACE_WITH_SAVED_SUFFIX
 test -d "$review_evidence"
 make up
 make ps
-wp_review core is-installed && printf 'WordPress is still installed.\n'
-wp_review post list --post_type=page --post_status=publish --orderby=ID --order=ASC \
+wp core is-installed && printf 'WordPress is still installed.\n'
+wp post list --post_type=page --post_status=publish --orderby=ID --order=ASC \
   --fields=ID,post_title,post_content,post_status --format=json \
   > "$review_evidence/pages.after.json"
-wp_review comment list --orderby=comment_ID --order=ASC \
+wp comment list --orderby=comment_ID --order=ASC \
   --fields=comment_ID,comment_post_ID,comment_content,comment_approved --format=json \
   > "$review_evidence/comments.after.json"
-wp_review user list --orderby=ID --order=ASC \
+wp user list --orderby=ID --order=ASC \
   --fields=ID,user_login,roles --format=json > "$review_evidence/users.after.json"
 diff -u "$review_evidence/pages.before.json" "$review_evidence/pages.after.json"
 diff -u "$review_evidence/comments.before.json" "$review_evidence/comments.after.json"
@@ -627,10 +627,10 @@ review_url="https://$review_domain"
 
 ```sh
 dc exec -T redis /usr/local/bin/healthcheck.sh
-wp_review redis status
-wp_review cache set review-probe cache-ok inception-review 60
-wp_review cache get review-probe inception-review
-wp_review cache delete review-probe inception-review
+wp redis status
+wp cache set review-probe cache-ok inception-review 60
+wp cache get review-probe inception-review
+wp cache delete review-probe inception-review
 ```
 
 healthcheckが終了コード`0`を返し、Redisの状態が有効なdrop-inによる接続済みであり、別プロセスの`cache get`が60秒の有効期限内に`cache-ok`を表示することを確認します。最後のコマンドではテストキーだけを削除します。

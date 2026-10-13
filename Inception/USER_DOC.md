@@ -341,7 +341,7 @@ persistent data, and additional services. If a fresh initialization is unnecessa
 avoid `make fclean` and keep existing data intact.
 
 Run the commands in Bash inside the VM, as `takawaka`, from the repository root.
-Set up `dc`, `wp_review`, and `review_domain` in
+Set up `dc`, `wp`, and `review_domain` in
 [Step 1](#1-start-the-stack-and-define-checking-commands). The table links to
 procedures; read their prerequisites and expected results as well.
 
@@ -357,11 +357,11 @@ procedures; read their prerequisites and expected results as well.
 | Docker images | Inspect Dockerfiles, `dc config --images`, `make -n up` | [Image construction and base images](DEV_DOC.md#2-prepare-the-shell-and-inspect-the-project-files), [restart behavior and PID 1](DEV_DOC.md#4-inspect-the-running-infrastructure) |
 | Docker network | `docker network ls`, `docker network inspect inception_inception` | [Bridge network, service DNS, and internal ports](DEV_DOC.md#4-inspect-the-running-infrastructure) |
 | NGINX / TLS | `dc port nginx 443`, check port 80, test TLS 1.2 and 1.3 | [curl, OpenSSL, certificate, and NGINX configuration](#2-verify-https-and-tls) |
-| WordPress / PHP-FPM / volumes | `wp_review user list`, inspect volumes, add a comment as a regular user and edit a page as administrator | [Volume locations](#3-inspect-persistent-volumes), [accounts and browser tests](#4-check-wordpress-and-database-access) |
+| WordPress / PHP-FPM / volumes | `wp user list`, inspect volumes, add a comment as a regular user and edit a page as administrator | [Volume locations](#3-inspect-persistent-volumes), [accounts and browser tests](#4-check-wordpress-and-database-access) |
 | MariaDB / volumes | Log in to the database, `SHOW TABLES;`, `SELECT COUNT(*) FROM wp_users;` | [Basic and detailed database checks](#database-and-persistence-commands) |
 | Data persistence | Reboot the VM → run `make up ps browser` in the same clone → check saved data and database | [Basic checks](#database-and-persistence-commands), [JSON snapshots and volumes](#5-verify-persistence-across-container-recreation-and-vm-reboot) |
 | Configuration changes | Edit the configuration → `make up` → `make ps` → test the changed service | [NGINX port-change and rollback example](DEV_DOC.md#5-change-a-service-configuration-and-restore-it) |
-| Additional service: Redis | `wp_review redis status`, set/get a cache key from separate processes | [Healthcheck, connection, cache reuse, and cleanup](#7-check-additional-services) |
+| Additional service: Redis | `wp redis status`, set/get a cache key from separate processes | [Healthcheck, connection, cache reuse, and cleanup](#7-check-additional-services) |
 | Additional service: FTP | Use curl to log in and upload, then retrieve the file through HTTPS | [Password prompt, passive transfer, shared volume, and cleanup](#7-check-additional-services) |
 | Additional service: Static site | `curl http://127.0.0.1:8080/`, open it in the VM browser | [HTTP response and PHP-free source](#7-check-additional-services) |
 | Additional service: Adminer | Log in to the database at `http://127.0.0.1:8081/` and inspect WordPress tables | [Connection, HTTP check, and SQL query](#7-check-additional-services) |
@@ -388,7 +388,7 @@ change to the corresponding directory.
 cd ~/asd
 ```
 
-`dc` and `wp_review` are [helper functions](#1-start-the-stack-and-define-checking-commands).
+`dc` and `wp` are [helper functions](#1-start-the-stack-and-define-checking-commands).
 On the prepared VM, they are available in new Bash terminals. In an already
 open terminal, reload them with `source ~/.bashrc`. On a fresh VM, define the
 functions as shown in the linked section.
@@ -482,11 +482,11 @@ compare results. Verify that users, page contents, comments, approval states,
 and volume paths are unchanged.
 
 ```sh
-wp_review core is-installed
-wp_review user list --fields=ID,user_login,roles --format=table
-wp_review post list --post_type=page --post_status=publish \
+wp core is-installed
+wp user list --fields=ID,user_login,roles --format=table
+wp post list --post_type=page --post_status=publish \
   --fields=ID,post_title,post_content --format=table
-wp_review comment list \
+wp comment list \
   --fields=comment_ID,comment_post_ID,comment_content,comment_approved --format=table
 docker volume inspect inception_wordpress_data inception_mariadb_data \
   --format '{{.Name}} path={{.Mountpoint}}'
@@ -510,7 +510,7 @@ the storage administrator helper as described in DEV_DOC.
 Browser actions require a graphical session.
 
 The shell functions below use the same Compose and environment files as the
-Makefile. Inspect their definitions using `type dc wp_review`. On the supplied
+Makefile. Inspect their definitions using `type dc wp`. On the supplied
 VM, they are defined in `takawaka`'s `~/.bashrc`; a new Bash terminal loads
 them, and an existing terminal can run `source ~/.bashrc`. On a fresh VM,
 define the functions in your working shell as shown below.
@@ -526,7 +526,7 @@ unset COMPOSE_PROJECT_NAME
 dc() {
   command docker compose -f srcs/docker-compose.yml --env-file srcs/.env "$@"
 }
-wp_review() {
+wp() {
   dc exec -T wordpress wp --allow-root --path=/var/www/html "$@"
 }
 make
@@ -630,13 +630,13 @@ show which containers share each volume and whether each mount is read-only.
 Check installation, the two WordPress accounts, and the configured URLs:
 
 ```sh
-wp_review core is-installed && printf 'WordPress is installed.\n'
-wp_review user list --fields=ID,user_login,roles --format=table
-wp_review option get home
-wp_review option get siteurl
-wp_review post list --post_type=page --post_status=publish \
+wp core is-installed && printf 'WordPress is installed.\n'
+wp user list --fields=ID,user_login,roles --format=table
+wp option get home
+wp option get siteurl
+wp post list --post_type=page --post_status=publish \
   --fields=ID,post_title,post_status --format=table
-wp_review comment list \
+wp comment list \
   --fields=comment_ID,comment_post_ID,comment_author,comment_approved --format=table
 ```
 
@@ -699,13 +699,13 @@ Store comparison snapshots outside the Docker data directory:
 ```sh
 review_evidence=$(mktemp -d /home/takawaka/inception-review.XXXXXX)
 printf 'Keep this evidence path for after reboot: %s\n' "$review_evidence"
-wp_review post list --post_type=page --post_status=publish --orderby=ID --order=ASC \
+wp post list --post_type=page --post_status=publish --orderby=ID --order=ASC \
   --fields=ID,post_title,post_content,post_status --format=json \
   > "$review_evidence/pages.before.json"
-wp_review comment list --orderby=comment_ID --order=ASC \
+wp comment list --orderby=comment_ID --order=ASC \
   --fields=comment_ID,comment_post_ID,comment_content,comment_approved --format=json \
   > "$review_evidence/comments.before.json"
-wp_review user list --orderby=ID --order=ASC \
+wp user list --orderby=ID --order=ASC \
   --fields=ID,user_login,roles --format=json > "$review_evidence/users.before.json"
 make down
 make up
@@ -719,7 +719,7 @@ Do not use `--volumes` or run `make fclean`.
 Save open work, then reboot Debian using the power menu inside the VM's
 graphical session. After it returns, log in as `takawaka`, open a Bash terminal,
 and enter the same clone. If using SSH, reconnect with `ssh -A`.
-Unset `COMPOSE_PROJECT_NAME` and check that `dc` and `wp_review` are available
+Unset `COMPOSE_PROJECT_NAME` and check that `dc` and `wp` are available
 as described in Step 1. Set `review_evidence` to the exact path printed before
 reboot; replace the example path below:
 
@@ -729,14 +729,14 @@ review_evidence=/home/takawaka/inception-review.REPLACE_WITH_SAVED_SUFFIX
 test -d "$review_evidence"
 make up
 make ps
-wp_review core is-installed && printf 'WordPress is still installed.\n'
-wp_review post list --post_type=page --post_status=publish --orderby=ID --order=ASC \
+wp core is-installed && printf 'WordPress is still installed.\n'
+wp post list --post_type=page --post_status=publish --orderby=ID --order=ASC \
   --fields=ID,post_title,post_content,post_status --format=json \
   > "$review_evidence/pages.after.json"
-wp_review comment list --orderby=comment_ID --order=ASC \
+wp comment list --orderby=comment_ID --order=ASC \
   --fields=comment_ID,comment_post_ID,comment_content,comment_approved --format=json \
   > "$review_evidence/comments.after.json"
-wp_review user list --orderby=ID --order=ASC \
+wp user list --orderby=ID --order=ASC \
   --fields=ID,user_login,roles --format=json > "$review_evidence/users.after.json"
 diff -u "$review_evidence/pages.before.json" "$review_evidence/pages.after.json"
 diff -u "$review_evidence/comments.before.json" "$review_evidence/comments.after.json"
@@ -768,10 +768,10 @@ You can check the additional services individually as needed. First verify that 
 
 ```sh
 dc exec -T redis /usr/local/bin/healthcheck.sh
-wp_review redis status
-wp_review cache set review-probe cache-ok inception-review 60
-wp_review cache get review-probe inception-review
-wp_review cache delete review-probe inception-review
+wp redis status
+wp cache set review-probe cache-ok inception-review 60
+wp cache get review-probe inception-review
+wp cache delete review-probe inception-review
 ```
 
 Expect the healthcheck to exit `0`, Redis status to be connected with a valid
